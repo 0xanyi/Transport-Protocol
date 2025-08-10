@@ -35,7 +35,7 @@ export default function LoginPage() {
       // In production, this should use proper authentication
       if (credentials.email === 'admin@stppl.org' && credentials.password === 'admin123') {
         sessionStorage.setItem('isAdmin', 'true')
-        router.push('/dashboard/drivers')
+        router.push('/dashboard')
       } else {
         throw new Error('Invalid credentials')
       }
