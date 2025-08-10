@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
 
+export async function POST(request: NextRequest) {
   try {
     // Verify authentication
     const authResult = await getAuthContext(request)
@@ -19,7 +20,7 @@ import { getAuthContext } from '@/lib/auth'
       )
     }
 
-    const supabase = createClient()
+  const supabase = await createClient()
     
     // Get the driver ID for the authenticated user
     const { data: driverData, error: driverError } = await supabase
@@ -77,8 +78,8 @@ import { getAuthContext } from '@/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const authResult = await requireAuth(request)
-    if (!authResult.success) {
+  const authResult = await getAuthContext(request)
+  if (!authResult.isAuthenticated || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createClient()
+  const supabase = await createClient()
     
     // Get the driver ID for the authenticated user
     const { data: driverData, error: driverError } = await supabase

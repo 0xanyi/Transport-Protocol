@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireAuth } from '@/lib/auth'
+import { getAuthContext } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const authResult = await requireAuth(request)
-    if (!authResult.success) {
+    const authResult = await getAuthContext(request)
+    if (!authResult.isAuthenticated || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createClient()
+  const supabase = await createClient()
     
     // Get the driver ID for the authenticated user
     const { data: driverData, error: driverError } = await supabase
@@ -89,8 +89,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const authResult = await requireAuth(request)
-    if (!authResult.success) {
+    const authResult = await getAuthContext(request)
+    if (!authResult.isAuthenticated || !authResult.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createClient()
+  const supabase = await createClient()
     
     // Get the driver ID for the authenticated user
     const { data: driverData, error: driverError } = await supabase
