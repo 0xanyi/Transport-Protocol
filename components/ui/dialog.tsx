@@ -36,9 +36,16 @@ const DialogTrigger = ({ children, asChild }: DialogTriggerProps) => {
     context.onOpenChange(true)
   }
 
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      onClick: handleClick
+  if (
+    asChild &&
+    React.isValidElement<{ onClick?: React.MouseEventHandler<any> }>(children)
+  ) {
+    const child = children
+    return React.cloneElement(child, {
+      onClick: (e: React.MouseEvent) => {
+        child.props.onClick?.(e)
+        handleClick()
+      }
     })
   }
 

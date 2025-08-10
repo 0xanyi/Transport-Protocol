@@ -21,7 +21,8 @@ export function verifyToken(token: string): AuthUser | null {
       department: decoded.department
     }
   } catch (error) {
-    console.log('❌ Token verification failed:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.log('❌ Token verification failed:', message)
     return null
   }
 }
@@ -40,7 +41,8 @@ export async function verifyTokenEdge(token: string): Promise<AuthUser | null> {
       department: payload.department as any
     }
   } catch (error) {
-    console.log('❌ Edge token verification failed:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.log('❌ Edge token verification failed:', message)
     return null
   }
 }

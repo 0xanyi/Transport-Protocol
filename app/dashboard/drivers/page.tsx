@@ -101,7 +101,8 @@ export default function DriversPage() {
       
     } catch (error) {
       console.error('Error updating driver status:', error)
-      alert(`Error: ${error.message}`)
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      alert(`Error: ${message}`)
     } finally {
       setUpdatingDriverId(null)
     }

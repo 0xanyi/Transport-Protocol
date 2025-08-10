@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { UpdateUserRequest } from '@/types'
 import { requirePermission } from '@/lib/auth'
+import type { AuthContext } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
 export const GET = requirePermission('users', 'read', async (
   request: NextRequest,
+  _context: AuthContext,
   { params }: { params: { id: string } }
 ) => {
   try {
@@ -56,6 +58,7 @@ export const GET = requirePermission('users', 'read', async (
 
 export const PUT = requirePermission('users', 'update', async (
   request: NextRequest,
+  _context: AuthContext,
   { params }: { params: { id: string } }
 ) => {
   try {
@@ -119,6 +122,7 @@ export const PUT = requirePermission('users', 'update', async (
 
 export const DELETE = requirePermission('users', 'delete', async (
   request: NextRequest,
+  _context: AuthContext,
   { params }: { params: { id: string } }
 ) => {
   try {

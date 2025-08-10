@@ -290,7 +290,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={createForm.role} onValueChange={(value: UserRole) => setCreateForm(prev => ({ ...prev, role: value }))}>
+                  <Select value={createForm.role} onValueChange={(value) => setCreateForm(prev => ({ ...prev, role: value as UserRole }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -303,7 +303,7 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Select value={createForm.department} onValueChange={(value: DepartmentType) => setCreateForm(prev => ({ ...prev, department: value }))}>
+                  <Select value={createForm.department} onValueChange={(value) => setCreateForm(prev => ({ ...prev, department: value as DepartmentType }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -397,7 +397,7 @@ export default function UsersPage() {
                 />
               </div>
             </div>
-            <Select value={roleFilter} onValueChange={(value: UserRole | 'all') => setRoleFilter(value)}>
+            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as UserRole | 'all')}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
@@ -409,7 +409,7 @@ export default function UsersPage() {
                 <SelectItem value="driver">Driver</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={departmentFilter} onValueChange={(value: DepartmentType | 'all') => setDepartmentFilter(value)}>
+            <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentType | 'all')}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
@@ -421,7 +421,7 @@ export default function UsersPage() {
                 <SelectItem value="operations">Operations</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={(value: 'active' | 'inactive' | 'all') => setStatusFilter(value)}>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'active' | 'inactive' | 'all')}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -538,7 +538,7 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="editRole">Role</Label>
-                  <Select value={editForm.role} onValueChange={(value: UserRole) => setEditForm(prev => ({ ...prev, role: value }))}>
+                  <Select value={editForm.role} onValueChange={(value) => setEditForm(prev => ({ ...prev, role: value as UserRole }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -551,7 +551,7 @@ export default function UsersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="editDepartment">Department</Label>
-                  <Select value={editForm.department} onValueChange={(value: DepartmentType) => setEditForm(prev => ({ ...prev, department: value }))}>
+                  <Select value={editForm.department} onValueChange={(value) => setEditForm(prev => ({ ...prev, department: value as DepartmentType }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -567,7 +567,7 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editStatus">Status</Label>
-                <Select value={editForm.status} onValueChange={(value: 'active' | 'inactive') => setEditForm(prev => ({ ...prev, status: value }))}>
+                <Select value={editForm.status} onValueChange={(value) => setEditForm(prev => ({ ...prev, status: value as 'active' | 'inactive' }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

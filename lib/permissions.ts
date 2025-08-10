@@ -66,22 +66,18 @@ export function canManageResource(
   // Resource-specific rules
   switch (resource) {
     case 'drivers':
-      return user.role === 'admin' || 
-             (user.role === 'coordinator' && user.department === 'transport')
+      return (user.role === 'coordinator' && user.department === 'transport')
     
     case 'vehicles':
-      return user.role === 'admin' || 
-             (user.role === 'coordinator' && user.department === 'transport')
+      return (user.role === 'coordinator' && user.department === 'transport')
     
     case 'vips':
       // VIPs can be managed by hospitality and transport coordinators
-      return user.role === 'admin' || 
-             (user.role === 'coordinator' && 
-              (user.department === 'hospitality' || user.department === 'transport'))
+      return (user.role === 'coordinator' && 
+        (user.department === 'hospitality' || user.department === 'transport'))
     
     case 'assignments':
-      return user.role === 'admin' || 
-             (user.role === 'coordinator' && user.department === 'transport')
+      return (user.role === 'coordinator' && user.department === 'transport')
     
     default:
       return false
