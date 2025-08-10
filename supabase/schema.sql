@@ -1,13 +1,27 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create custom types
-CREATE TYPE driver_status AS ENUM ('pending', 'approved', 'active', 'inactive');
-CREATE TYPE assignment_status AS ENUM ('scheduled', 'active', 'completed');
-CREATE TYPE location_status AS ENUM ('enroute', 'at_airport', 'at_hotel', 'at_venue', 'available');
+-- Create custom types (skip if they already exist)
+DO $$ BEGIN
+    CREATE TYPE driver_status AS ENUM ('pending', 'approved', 'active', 'inactive');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE assignment_status AS ENUM ('scheduled', 'active', 'completed');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE location_status AS ENUM ('enroute', 'at_airport', 'at_hotel', 'at_venue', 'available');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Drivers table
-CREATE TABLE drivers (
+CREATE TABLE IF NOT EXISTS drivers (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
@@ -30,7 +44,7 @@ CREATE TABLE drivers (
 );
 
 -- Vehicles table
-CREATE TABLE vehicles (
+CREATE TABLE IF NOT EXISTS vehicles (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     make VARCHAR(100) NOT NULL,
     model VARCHAR(100) NOT NULL,
@@ -50,7 +64,7 @@ CREATE TABLE vehicles (
 );
 
 -- VIPs table
-CREATE TABLE vips (
+CREATE TABLE IF NOT EXISTS vips (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     arrival_date DATE NOT NULL,
@@ -68,7 +82,7 @@ CREATE TABLE vips (
 );
 
 -- Assignments table
-CREATE TABLE assignments (
+CREATE TABLE IF NOT EXISTS assignments (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     driver_id UUID NOT NULL REFERENCES drivers(id),
     vip_id UUID REFERENCES vips(id),
@@ -81,7 +95,7 @@ CREATE TABLE assignments (
 );
 
 -- Location updates table
-CREATE TABLE location_updates (
+CREATE TABLE IF NOT EXISTS location_updates (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     driver_id UUID NOT NULL REFERENCES drivers(id),
     latitude DECIMAL(10, 8) NOT NULL,
@@ -91,15 +105,15 @@ CREATE TABLE location_updates (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Create indexes
-CREATE INDEX idx_drivers_status ON drivers(status);
-CREATE INDEX idx_drivers_availability ON drivers(availability_start, availability_end);
-CREATE INDEX idx_vehicles_registration ON vehicles(registration);
-CREATE INDEX idx_assignments_driver ON assignments(driver_id);
-CREATE INDEX idx_assignments_vehicle ON assignments(vehicle_id);
-CREATE INDEX idx_assignments_vip ON assignments(vip_id);
-CREATE INDEX idx_location_updates_driver ON location_updates(driver_id);
-CREATE INDEX idx_location_updates_timestamp ON location_updates(timestamp);
+-- Create indexes (skip if they already exist)
+CREATE INDEX IF NOT EXISTS idx_drivers_status ON drivers(status);
+CREATE INDEX IF NOT EXISTS idx_drivers_availability ON drivers(availability_start, availability_end);
+CREATE INDEX IF NOT EXISTS idx_vehicles_registration ON vehicles(registration);
+CREATE INDEX IF NOT EXISTS idx_assignments_driver ON assignments(driver_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_vehicle ON assignments(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_vip ON assignments(vip_id);
+CREATE INDEX IF NOT EXISTS idx_location_updates_driver ON location_updates(driver_id);
+CREATE INDEX IF NOT EXISTS idx_location_updates_timestamp ON location_updates(timestamp);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -110,18 +124,34 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
-CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create triggers for updated_at (skip if they already exist)
+DO $$ BEGIN
+    CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+    CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TRIGGER update_vips_updated_at BEFORE UPDATE ON vips
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+    CREATE TRIGGER update_vips_updated_at BEFORE UPDATE ON vips
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+    CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Row Level Security (RLS)
 ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
@@ -131,10 +161,38 @@ ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_updates ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (basic, to be refined based on auth requirements)
-CREATE POLICY "Public read access" ON drivers FOR SELECT USING (true);
-CREATE POLICY "Public insert for registration" ON drivers FOR INSERT WITH CHECK (true);
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON drivers FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE POLICY "Public read access" ON vehicles FOR SELECT USING (true);
-CREATE POLICY "Public read access" ON vips FOR SELECT USING (true);
-CREATE POLICY "Public read access" ON assignments FOR SELECT USING (true);
-CREATE POLICY "Public read access" ON location_updates FOR SELECT USING (true);
+DO $$ BEGIN
+    CREATE POLICY "Public insert for registration" ON drivers FOR INSERT WITH CHECK (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON vehicles FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON vips FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON assignments FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON location_updates FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;

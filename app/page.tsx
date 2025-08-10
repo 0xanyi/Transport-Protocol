@@ -6,24 +6,65 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { Eye, EyeOff, User, Lock } from 'lucide-react'
+import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react'
+import { AuthUser, LoginCredentials, UserRole } from '@/types'
 
 export default function HomePage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [credentials, setCredentials] = useState<LoginCredentials>({
+    email: '',
+    password: ''
+  })
   const [rememberMe, setRememberMe] = useState(false)
 
-  const handleSignIn = (e: React.FormEvent) => {
+  // Mock user database (in production, this would be in Supabase)
+  const mockUsers: Record<string, { password: string; user: AuthUser }> = {
+    'admin@stppl.org': {
+      password: 'admin123',
+      user: { id: '1', email: 'admin@stppl.org', name: 'Admin User', role: 'admin' }
+    },
+    'driver@stppl.org': {
+      password: 'driver123',
+      user: { id: '2', email: 'driver@stppl.org', name: 'Driver User', role: 'driver' }
+    },
+    'coordinator@stppl.org': {
+      password: 'coord123',
+      user: { id: '3', email: 'coordinator@stppl.org', name: 'Coordinator User', role: 'coordinator' }
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCredentials(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
+  }
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
+    setError('')
     
-    // Simple authentication check (MVP)
-    if (email === 'admin@stppl.org' && password === 'admin123') {
-      sessionStorage.setItem('auth', 'true')
-      router.push('/dashboard')
-    } else {
-      alert('Invalid credentials. Use admin@stppl.org / admin123')
+    try {
+      // Simple authentication check (MVP)
+      const userRecord = mockUsers[credentials.email]
+      
+      if (userRecord && userRecord.password === credentials.password) {
+        // Store authentication info
+        sessionStorage.setItem('isAuthenticated', 'true')
+        sessionStorage.setItem('currentUser', JSON.stringify(userRecord.user))
+        
+        router.push('/dashboard')
+      } else {
+        throw new Error('Invalid email or password')
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -53,11 +94,13 @@ export default function HomePage() {
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <Input
                     type="email"
+                    name="email"
                     placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={credentials.email}
+                    onChange={handleInputChange}
                     className="pl-10 h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -67,11 +110,13 @@ export default function HomePage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <Input
                     type={showPassword ? "text" : "password"}
+                    name="password"
                     placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={credentials.password}
+                    onChange={handleInputChange}
                     className="pl-10 pr-10 h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
                     required
+                    disabled={loading}
                   />
                   <button
                     type="button"
@@ -98,8 +143,20 @@ export default function HomePage() {
                 </a>
               </div>
 
-              <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700">
-                Sign In
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                  <span className="text-sm text-red-800">{error}</span>
+                </div>
+              )}
+
+             
+              <Button 
+                type="submit" 
+                className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700"
+                disabled={loading}
+              >
+                {loading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
 

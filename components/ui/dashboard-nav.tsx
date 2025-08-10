@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
-import { Users, Car, Calendar, UserCheck, LogOut, Home } from 'lucide-react'
+import { Users, Car, Calendar, UserCheck, LogOut, Home, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AuthUser } from '@/types'
 
 const navItems = [
   {
@@ -29,13 +30,34 @@ const navItems = [
   },
 ]
 
-export function DashboardNav() {
+interface DashboardNavProps {
+  currentUser: AuthUser | null
+}
+
+export function DashboardNav({ currentUser }: DashboardNavProps) {
   const pathname = usePathname()
   const router = useRouter()
 
   const handleLogout = () => {
-    sessionStorage.removeItem('isAdmin')
+    sessionStorage.removeItem('isAuthenticated')
+    sessionStorage.removeItem('currentUser')
     router.push('/')
+  }
+
+  // Filter nav items based on user role
+  const getVisibleNavItems = () => {
+    if (!currentUser) return []
+    
+    switch (currentUser.role) {
+      case 'admin':
+        return navItems // Admins see everything
+      case 'coordinator':
+        return navItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
+      case 'driver':
+        return navItems.filter(item => ['Assignments'].includes(item.title))
+      default:
+        return []
+    }
   }
 
   return (
@@ -49,7 +71,7 @@ export function DashboardNav() {
             </Link>
             
             <div className="flex space-x-4">
-              {navItems.map((item) => {
+              {getVisibleNavItems().map((item) => {
                 const Icon = item.icon
                 return (
                   <Link
@@ -70,15 +92,27 @@ export function DashboardNav() {
             </div>
           </div>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="flex items-center space-x-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </Button>
+          <div className="flex items-center space-x-4">
+            {currentUser && (
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <User className="w-4 h-4" />
+                <span>{currentUser.name}</span>
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded capitalize">
+                  {currentUser.role}
+                </span>
+              </div>
+            )}
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center space-x-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </Button>
+          </div>
         </div>
       </div>
     </nav>

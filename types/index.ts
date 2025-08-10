@@ -91,3 +91,17 @@ export interface LocationUpdate {
   status: 'enroute' | 'at_airport' | 'at_hotel' | 'at_venue' | 'available'
   created_at: Date
 }
+
+export type UserRole = 'admin' | 'driver' | 'coordinator'
+
+export interface AuthUser {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
