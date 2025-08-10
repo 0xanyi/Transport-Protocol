@@ -19,16 +19,20 @@ export default function DashboardLayout({
     const isAuthenticated = sessionStorage.getItem('isAuthenticated')
     const userDataString = sessionStorage.getItem('currentUser')
     
+    console.log('🔍 Dashboard auth check:', { isAuthenticated, hasUserData: !!userDataString })
+    
     if (!isAuthenticated || !userDataString) {
+      console.log('❌ No auth data, redirecting to home')
       router.push('/')
       return
     }
 
     try {
       const userData = JSON.parse(userDataString) as AuthUser
+      console.log('✅ Dashboard auth successful for:', userData.name)
       setCurrentUser(userData)
     } catch (error) {
-      console.error('Error parsing user data:', error)
+      console.error('❌ Error parsing user data:', error)
       router.push('/')
       return
     }

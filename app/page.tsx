@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Eye, EyeOff, User, Lock, AlertCircle } from 'lucide-react'
-import { AuthUser, LoginCredentials, UserRole } from '@/types'
+import { LoginCredentials } from '@/types'
 
 export default function HomePage() {
   const router = useRouter()
@@ -20,22 +20,6 @@ export default function HomePage() {
   })
   const [rememberMe, setRememberMe] = useState(false)
 
-  // Mock user database (in production, this would be in Supabase)
-  const mockUsers: Record<string, { password: string; user: AuthUser }> = {
-    'admin@stppl.org': {
-      password: 'admin123',
-      user: { id: '1', email: 'admin@stppl.org', name: 'Admin User', role: 'admin' }
-    },
-    'driver@stppl.org': {
-      password: 'driver123',
-      user: { id: '2', email: 'driver@stppl.org', name: 'Driver User', role: 'driver' }
-    },
-    'coordinator@stppl.org': {
-      password: 'coord123',
-      user: { id: '3', email: 'coordinator@stppl.org', name: 'Coordinator User', role: 'coordinator' }
-    }
-  }
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCredentials(prev => ({
       ...prev,
@@ -45,22 +29,40 @@ export default function HomePage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Prevent multiple submissions
+    if (loading) return
+    
     setLoading(true)
     setError('')
     
     try {
-      // Simple authentication check (MVP)
-      const userRecord = mockUsers[credentials.email]
-      
-      if (userRecord && userRecord.password === credentials.password) {
-        // Store authentication info
-        sessionStorage.setItem('isAuthenticated', 'true')
-        sessionStorage.setItem('currentUser', JSON.stringify(userRecord.user))
-        
-        router.push('/dashboard')
-      } else {
-        throw new Error('Invalid email or password')
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(credentials)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Login failed')
       }
+
+      const data = await response.json()
+      console.log('✅ Login response data:', data)
+      
+      // Store user data in sessionStorage for backward compatibility
+      // The HTTP-only cookie will be set automatically by the API
+      sessionStorage.setItem('isAuthenticated', 'true')
+      sessionStorage.setItem('currentUser', JSON.stringify(data.user))
+      
+      console.log('🔄 Redirecting to dashboard...')
+      // Small delay to ensure sessionStorage is written
+      setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 100)
     } catch (err: any) {
       setError(err.message)
     } finally {

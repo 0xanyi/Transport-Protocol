@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils/cn'
-import { Users, Car, Calendar, UserCheck, LogOut, Home, User } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Users, Car, Calendar, UserCheck, LogOut, Home, User, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AuthUser } from '@/types'
 
@@ -28,6 +28,12 @@ const navItems = [
     href: '/dashboard/assignments',
     icon: Calendar,
   },
+  {
+    title: 'Users',
+    href: '/dashboard/users',
+    icon: Shield,
+    adminOnly: true,
+  },
 ]
 
 interface DashboardNavProps {
@@ -38,23 +44,40 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
   const pathname = usePathname()
   const router = useRouter()
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('isAuthenticated')
-    sessionStorage.removeItem('currentUser')
-    router.push('/')
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Always clear local storage and redirect
+      sessionStorage.removeItem('isAuthenticated')
+      sessionStorage.removeItem('currentUser')
+      router.push('/')
+    }
   }
 
   // Filter nav items based on user role
   const getVisibleNavItems = () => {
     if (!currentUser) return []
     
+    // Filter out admin-only items for non-admin users
+    const filteredItems = navItems.filter(item => {
+      if (item.adminOnly && currentUser.role !== 'admin') {
+        return false
+      }
+      return true
+    })
+    
     switch (currentUser.role) {
       case 'admin':
-        return navItems // Admins see everything
+        return filteredItems // Admins see everything (including Users)
       case 'coordinator':
-        return navItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
+        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
+      case 'team_head':
+        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
       case 'driver':
-        return navItems.filter(item => ['Assignments'].includes(item.title))
+        return filteredItems.filter(item => ['Assignments'].includes(item.title))
       default:
         return []
     }
@@ -96,10 +119,19 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
             {currentUser && (
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <User className="w-4 h-4" />
-                <span>{currentUser.name}</span>
-                <span className="text-xs bg-gray-100 px-2 py-1 rounded capitalize">
-                  {currentUser.role}
-                </span>
+                <div className="flex flex-col">
+                  <span className="font-medium">{currentUser.name}</span>
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded capitalize">
+                      {currentUser.role.replace('_', ' ')}
+                    </span>
+                    {currentUser.department && (
+                      <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded capitalize">
+                        {currentUser.department === 'all' ? 'All Depts' : currentUser.department}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
             

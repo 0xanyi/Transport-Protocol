@@ -45,35 +45,63 @@ export default function DriversPage() {
     try {
       console.log('Updating driver status:', { driverId, status })
       
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('drivers')
-        .update({ status: status === 'rejected' ? 'inactive' : status })
-        .eq('id', driverId)
-        .select()
+      if (status === 'approved') {
+        // Use the special approval endpoint that creates user account
+        const response = await fetch(`/api/drivers/${driverId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
 
-      if (error) {
-        console.error('Database error:', error)
-        alert(`Error updating driver status: ${error.message}`)
-        return
-      }
-      
-      console.log('Update successful:', data)
-      
-      // Update the local state immediately instead of refetching
-      setDrivers(prev => 
-        prev.map(driver => 
-          driver.id === driverId 
-            ? { ...driver, status: status === 'rejected' ? 'inactive' : status }
-            : driver
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to approve driver')
+        }
+
+        const result = await response.json()
+        console.log('Approval successful:', result)
+        
+        // Update the local state
+        setDrivers(prev => 
+          prev.map(driver => 
+            driver.id === driverId 
+              ? { ...driver, status: 'approved', user_id: result.driver.user_id }
+              : driver
+          )
         )
-      )
-      
-      alert(`Driver ${status === 'approved' ? 'approved' : 'rejected'} successfully!`)
+        
+        alert('Driver approved successfully! Login credentials have been sent to their email.')
+      } else {
+        // For rejection, use direct database update
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('drivers')
+          .update({ status: 'inactive' })
+          .eq('id', driverId)
+          .select()
+
+        if (error) {
+          console.error('Database error:', error)
+          alert(`Error rejecting driver: ${error.message}`)
+          return
+        }
+        
+        // Update the local state
+        setDrivers(prev => 
+          prev.map(driver => 
+            driver.id === driverId 
+              ? { ...driver, status: 'inactive' }
+              : driver
+          )
+        )
+        
+        alert('Driver rejected successfully!')
+      }
       
     } catch (error) {
       console.error('Error updating driver status:', error)
-      alert('An unexpected error occurred. Please try again.')
+      alert(`Error: ${error.message}`)
     } finally {
       setUpdatingDriverId(null)
     }

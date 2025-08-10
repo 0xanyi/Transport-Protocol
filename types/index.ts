@@ -16,6 +16,7 @@ export interface Driver {
   availability_start: Date
   availability_end: Date
   status: 'pending' | 'approved' | 'active' | 'inactive'
+  user_id?: string
   current_location?: Location
   current_assignment?: string
   created_at: Date
@@ -92,16 +93,82 @@ export interface LocationUpdate {
   created_at: Date
 }
 
-export type UserRole = 'admin' | 'driver' | 'coordinator'
+export type UserRole = 'admin' | 'coordinator' | 'team_head' | 'driver'
+
+export type DepartmentType = 'hospitality' | 'lounge' | 'transport' | 'operations' | 'all'
+
+export interface User {
+  id: string
+  email: string
+  password_hash?: string
+  name: string
+  role: UserRole
+  department: DepartmentType
+  status: 'active' | 'inactive'
+  created_by?: string
+  created_at: Date
+  updated_at: Date
+}
 
 export interface AuthUser {
   id: string
   email: string
   name: string
   role: UserRole
+  department: DepartmentType
 }
 
 export interface LoginCredentials {
   email: string
   password: string
+}
+
+export interface CreateUserRequest {
+  email: string
+  password: string
+  name: string
+  role: UserRole
+  department: DepartmentType
+}
+
+export interface UpdateUserRequest {
+  name?: string
+  role?: UserRole
+  department?: DepartmentType
+  status?: 'active' | 'inactive'
+}
+
+export interface UserWithCreator extends User {
+  created_by_user?: User
+}
+
+export interface Permission {
+  resource: string
+  action: 'create' | 'read' | 'update' | 'delete' | 'manage'
+}
+
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  admin: [
+    { resource: '*', action: 'manage' },
+    { resource: 'users', action: 'manage' }
+  ],
+  coordinator: [
+    { resource: 'drivers', action: 'read' },
+    { resource: 'vehicles', action: 'read' },
+    { resource: 'vips', action: 'read' },
+    { resource: 'assignments', action: 'manage' },
+    { resource: 'location_updates', action: 'read' }
+  ],
+  team_head: [
+    { resource: 'drivers', action: 'read' },
+    { resource: 'vehicles', action: 'read' },
+    { resource: 'vips', action: 'read' },
+    { resource: 'assignments', action: 'read' },
+    { resource: 'location_updates', action: 'read' }
+  ],
+  driver: [
+    { resource: 'assignments', action: 'read' },
+    { resource: 'location_updates', action: 'create' },
+    { resource: 'profile', action: 'read' }
+  ]
 }
