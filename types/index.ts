@@ -70,6 +70,12 @@ export interface Assignment {
   updated_at: Date
 }
 
+export interface AssignmentWithDetails extends Assignment {
+  driver?: Driver
+  vehicle?: Vehicle
+  vip?: VIP
+}
+
 export interface Location {
   latitude: number
   longitude: number

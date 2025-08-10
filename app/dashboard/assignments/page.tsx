@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { Driver, Vehicle, VIP, Assignment } from '@/types'
+import { Driver, Vehicle, VIP, AssignmentWithDetails } from '@/types'
 import { Calendar, User, Car, UserCheck, Plus, ArrowRight } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -12,7 +12,7 @@ export default function AssignmentsPage() {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vips, setVips] = useState<VIP[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
