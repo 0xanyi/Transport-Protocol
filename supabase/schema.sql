@@ -21,6 +21,12 @@ EXCEPTION
 END $$;
 
 DO $$ BEGIN
+    CREATE TYPE checkin_type AS ENUM ('airport_arrival', 'vip_pickup', 'enroute_hotel', 'hotel_arrival', 'event_departure', 'custom');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
     CREATE TYPE user_role AS ENUM ('admin', 'coordinator', 'team_head', 'driver');
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -132,6 +138,34 @@ CREATE TABLE IF NOT EXISTS location_updates (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Check-ins table for driver journey tracking
+CREATE TABLE IF NOT EXISTS checkins (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    driver_id UUID NOT NULL REFERENCES drivers(id),
+    assignment_id UUID NOT NULL REFERENCES assignments(id),
+    checkin_type checkin_type NOT NULL,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    notes TEXT,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Vehicle observations table for driver notes about vehicle condition
+CREATE TABLE IF NOT EXISTS vehicle_observations (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    driver_id UUID NOT NULL REFERENCES drivers(id),
+    vehicle_id UUID NOT NULL REFERENCES vehicles(id),
+    assignment_id UUID NOT NULL REFERENCES assignments(id),
+    observation_type VARCHAR(50) NOT NULL, -- 'pickup', 'dropoff', 'maintenance_issue'
+    mileage INTEGER,
+    fuel_level INTEGER, -- 0-100 percentage
+    damage_notes TEXT,
+    photos TEXT[], -- Array of photo URLs
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create indexes (skip if they already exist)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -146,6 +180,12 @@ CREATE INDEX IF NOT EXISTS idx_assignments_vehicle ON assignments(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_vip ON assignments(vip_id);
 CREATE INDEX IF NOT EXISTS idx_location_updates_driver ON location_updates(driver_id);
 CREATE INDEX IF NOT EXISTS idx_location_updates_timestamp ON location_updates(timestamp);
+CREATE INDEX IF NOT EXISTS idx_checkins_driver ON checkins(driver_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_assignment ON checkins(assignment_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_timestamp ON checkins(timestamp);
+CREATE INDEX IF NOT EXISTS idx_vehicle_observations_driver ON vehicle_observations(driver_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_observations_vehicle ON vehicle_observations(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_observations_assignment ON vehicle_observations(assignment_id);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -199,6 +239,8 @@ ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vehicle_observations ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (basic, to be refined based on auth requirements)
 DO $$ BEGIN
@@ -237,23 +279,51 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- Users table policies
 DO $$ BEGIN
-    CREATE POLICY "Users can read own data" ON users 
-    FOR SELECT USING (auth.uid()::text = id::text);
+    CREATE POLICY "Public read access" ON checkins FOR SELECT USING (true);
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
 DO $$ BEGIN
-    CREATE POLICY "Admins can manage all users" ON users 
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM users 
-            WHERE id::text = auth.uid()::text 
-            AND role = 'admin'
-        )
-    );
+    CREATE POLICY "Drivers can create checkins" ON checkins FOR INSERT WITH CHECK (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Public read access" ON vehicle_observations FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "Drivers can create vehicle observations" ON vehicle_observations FOR INSERT WITH CHECK (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Users table policies - Simplified to avoid recursion
+DO $$ BEGIN
+    CREATE POLICY "Public read access for authentication" ON users FOR SELECT USING (true);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "No public inserts on users" ON users FOR INSERT WITH CHECK (false);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "No public updates on users" ON users FOR UPDATE USING (false);
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE POLICY "No public deletes on users" ON users FOR DELETE USING (false);
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;

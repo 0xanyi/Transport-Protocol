@@ -1,10 +1,6 @@
-// Email service for sending notifications
-// In a production environment, you would integrate with services like:
-// - SendGrid
-// - AWS SES
-// - Nodemailer with SMTP
-// - Resend
-// - etc.
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export interface EmailData {
   to: string
@@ -15,31 +11,30 @@ export interface EmailData {
 
 export async function sendEmail(emailData: EmailData): Promise<boolean> {
   try {
-    // For development, just log the email
-    console.log('=== EMAIL NOTIFICATION ===')
-    console.log('To:', emailData.to)
-    console.log('Subject:', emailData.subject)
-    console.log('Content:')
-    console.log(emailData.text || emailData.html)
-    console.log('========================')
-
-    // TODO: Replace with actual email service integration
-    // Example with SendGrid:
-    /*
-    const sgMail = require('@sendgrid/mail')
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-    
-    const msg = {
-      to: emailData.to,
-      from: 'noreply@stppl.org',
-      subject: emailData.subject,
-      text: emailData.text,
-      html: emailData.html,
+    if (!process.env.RESEND_API_KEY) {
+      console.log('=== EMAIL NOTIFICATION (RESEND NOT CONFIGURED) ===')
+      console.log('To:', emailData.to)
+      console.log('Subject:', emailData.subject)
+      console.log('Content:')
+      console.log(emailData.text || emailData.html)
+      console.log('=================================================')
+      return true
     }
-    
-    await sgMail.send(msg)
-    */
 
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'STPPL Transport <noreply@stppl.org>',
+      to: emailData.to,
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
+    })
+
+    if (error) {
+      console.error('Resend email error:', error)
+      return false
+    }
+
+    console.log('Email sent successfully:', data?.id)
     return true
   } catch (error) {
     console.error('Email send error:', error)

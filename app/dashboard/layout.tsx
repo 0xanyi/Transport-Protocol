@@ -31,6 +31,12 @@ export default function DashboardLayout({
       const userData = JSON.parse(userDataString) as AuthUser
       console.log('✅ Dashboard auth successful for:', userData.name)
       setCurrentUser(userData)
+      
+      // Redirect drivers to their specific dashboard
+      if (userData.role === 'driver' && window.location.pathname === '/dashboard') {
+        router.push('/dashboard/driver')
+        return
+      }
     } catch (error) {
       console.error('❌ Error parsing user data:', error)
       router.push('/')

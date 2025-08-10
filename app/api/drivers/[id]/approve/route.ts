@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requirePermission } from '@/lib/auth'
+import { getAuthContext, hasPermission } from '@/lib/auth'
 import { sendEmail, createDriverLoginEmail } from '@/lib/email'
 import bcrypt from 'bcryptjs'
 
@@ -14,18 +14,36 @@ function generatePassword(): string {
   return password
 }
 
-export const POST = requirePermission('drivers', 'update', async (
+export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) => {
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    // Check authentication and permissions
+    const authContext = await getAuthContext(request)
+    
+    if (!authContext.isAuthenticated || !authContext.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    if (!hasPermission(authContext.user.role, 'drivers', 'update')) {
+      return NextResponse.json(
+        { error: 'Forbidden: Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
+    const { id } = await params
     const supabase = await createClient()
 
     // Get driver details
     const { data: driver, error: driverError } = await supabase
       .from('drivers')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (driverError || !driver) {
@@ -108,9 +126,8 @@ export const POST = requirePermission('drivers', 'update', async (
         status: 'approved',
         user_id: userId
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
-      .single()
 
     if (updateError) {
       console.error('Error updating driver status:', updateError)
@@ -122,7 +139,7 @@ export const POST = requirePermission('drivers', 'update', async (
 
     return NextResponse.json({
       message: 'Driver approved successfully and user account created',
-      driver: updatedDriver,
+      driver: updatedDriver?.[0] || driver,
       loginCredentials: {
         email: driver.email,
         // In production, don't return password in response
@@ -137,4 +154,4 @@ export const POST = requirePermission('drivers', 'update', async (
       { status: 500 }
     )
   }
-})
+}

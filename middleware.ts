@@ -11,7 +11,8 @@ export async function middleware(request: NextRequest) {
     '/',
     '/auth/register',
     '/api/auth/login',
-    '/api/drivers' // Allow driver registration
+    '/api/drivers', // Allow driver registration
+    '/api/debug' // Debug endpoints
   ]
 
   // Check if the current path is public
@@ -56,6 +57,5 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
-  runtime: 'nodejs'
+  ]
 }

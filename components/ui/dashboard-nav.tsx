@@ -34,6 +34,12 @@ const navItems = [
     icon: Shield,
     adminOnly: true,
   },
+  {
+    title: 'My Dashboard',
+    href: '/dashboard/driver',
+    icon: Home,
+    driverOnly: true,
+  },
 ]
 
 interface DashboardNavProps {
@@ -61,9 +67,12 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
   const getVisibleNavItems = () => {
     if (!currentUser) return []
     
-    // Filter out admin-only items for non-admin users
-    const filteredItems = navItems.filter(item => {
+    // Filter out admin-only and driver-only items based on user role
+    const filteredItems = navItems.filter((item: any) => {
       if (item.adminOnly && currentUser.role !== 'admin') {
+        return false
+      }
+      if (item.driverOnly && currentUser.role !== 'driver') {
         return false
       }
       return true
@@ -71,13 +80,13 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
     
     switch (currentUser.role) {
       case 'admin':
-        return filteredItems // Admins see everything (including Users)
+        return filteredItems.filter(item => !item.driverOnly) // Admins see everything except driver-specific
       case 'coordinator':
         return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
       case 'team_head':
         return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
       case 'driver':
-        return filteredItems.filter(item => ['Assignments'].includes(item.title))
+        return filteredItems.filter(item => ['My Dashboard'].includes(item.title))
       default:
         return []
     }

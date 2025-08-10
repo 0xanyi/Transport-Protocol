@@ -93,6 +93,34 @@ export interface LocationUpdate {
   created_at: Date
 }
 
+export type CheckinType = 'airport_arrival' | 'vip_pickup' | 'enroute_hotel' | 'hotel_arrival' | 'event_departure' | 'custom'
+
+export interface Checkin {
+  id: string
+  driver_id: string
+  assignment_id: string
+  checkin_type: CheckinType
+  latitude?: number
+  longitude?: number
+  notes?: string
+  timestamp: Date
+  created_at: Date
+}
+
+export interface VehicleObservation {
+  id: string
+  driver_id: string
+  vehicle_id: string
+  assignment_id: string
+  observation_type: 'pickup' | 'dropoff' | 'maintenance_issue'
+  mileage?: number
+  fuel_level?: number
+  damage_notes?: string
+  photos?: string[]
+  timestamp: Date
+  created_at: Date
+}
+
 export type UserRole = 'admin' | 'coordinator' | 'team_head' | 'driver'
 
 export type DepartmentType = 'hospitality' | 'lounge' | 'transport' | 'operations' | 'all'
@@ -169,6 +197,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   driver: [
     { resource: 'assignments', action: 'read' },
     { resource: 'location_updates', action: 'create' },
+    { resource: 'checkins', action: 'create' },
+    { resource: 'vehicle_observations', action: 'create' },
     { resource: 'profile', action: 'read' }
   ]
 }

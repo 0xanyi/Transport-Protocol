@@ -104,9 +104,9 @@ export function requireAuth(
 export function requirePermission(
   resource: string,
   action: string,
-  handler: (request: NextRequest, context: AuthContext) => Promise<Response>
+  handler: (request: NextRequest, context: AuthContext, routeContext?: any) => Promise<Response>
 ) {
-  return async (request: NextRequest) => {
+  return async (request: NextRequest, routeContext?: any) => {
     const authContext = await getAuthContext(request)
     
     console.log('🔒 Permission check:', { 
@@ -133,7 +133,7 @@ export function requirePermission(
     }
 
     console.log('✅ Permission granted')
-    return handler(request, authContext)
+    return handler(request, authContext, routeContext)
   }
 }
 
