@@ -11,11 +11,29 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { assignment_id, checkin_type, latitude, longitude, notes } = body
+    const { assignment_id, checkin_type, latitude, longitude, notes, event_date } = body
 
     if (!assignment_id || !checkin_type) {
       return NextResponse.json(
         { error: 'Assignment ID and check-in type are required' },
+        { status: 400 }
+      )
+    }
+
+    // Define which check-in types are daily (reset each day)
+    const dailyCheckinTypes = [
+      'hotel_to_barking',
+      'arriving_at_barking', 
+      'departing_barking',
+      'arriving_at_hotel'
+    ]
+    
+    const isDailyCheckin = dailyCheckinTypes.includes(checkin_type)
+    
+    // For daily check-ins, require event_date
+    if (isDailyCheckin && !event_date) {
+      return NextResponse.json(
+        { error: 'Event date is required for daily check-ins' },
         { status: 400 }
       )
     }
@@ -45,6 +63,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Assignment not found or not authorized' }, { status: 403 })
     }
 
+    // For daily check-ins, check if one already exists for today
+    if (isDailyCheckin) {
+      const { data: existingCheckin } = await supabase
+        .from('checkins')
+        .select('id')
+        .eq('driver_id', driverData.id)
+        .eq('assignment_id', assignment_id)
+        .eq('checkin_type', checkin_type)
+        .eq('event_date', event_date)
+        .eq('is_daily_checkin', true)
+        .single()
+
+      if (existingCheckin) {
+        return NextResponse.json(
+          { error: `You have already checked in for ${checkin_type} on ${event_date}` },
+          { status: 409 }
+        )
+      }
+    }
+
     // Create the check-in
     const checkinData = {
       driver_id: driverData.id,
@@ -53,7 +91,9 @@ export async function POST(request: NextRequest) {
       latitude: latitude || null,
       longitude: longitude || null,
       notes: notes?.trim() || null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      is_daily_checkin: isDailyCheckin,
+      event_date: isDailyCheckin ? event_date : null
     }
 
     const { data, error } = await supabase

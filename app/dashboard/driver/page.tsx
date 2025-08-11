@@ -32,6 +32,7 @@ export default function DriverDashboard() {
   const [assignment, setAssignment] = useState<AssignmentWithDetails | null>(null)
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [checkingIn, setCheckingIn] = useState(false)
   const [selectedCheckinType, setSelectedCheckinType] = useState<CheckinType | null>(null)
   const [checkinNotes, setCheckinNotes] = useState('')
@@ -48,16 +49,23 @@ export default function DriverDashboard() {
   useEffect(() => {
     // Get current user from session storage
     const userDataString = sessionStorage.getItem('currentUser')
+    console.log('🔍 Driver Dashboard - Loading user data')
+    
     if (userDataString) {
       const userData = JSON.parse(userDataString) as AuthUser
       setCurrentUser(userData)
       fetchDriverAssignment(userData.id)
+    } else {
+      console.log('❌ No user data in session storage')
+      setLoading(false)
     }
   }, [])
 
   const fetchDriverAssignment = async (userId: string) => {
     try {
       const supabase = createClient()
+      
+      console.log('🔍 Fetching driver record for user ID:', userId)
       
       // First get the driver record for this user
       const { data: driverData, error: driverError } = await supabase
@@ -67,41 +75,67 @@ export default function DriverDashboard() {
         .single()
 
       if (driverError || !driverData) {
-        console.error('Error fetching driver:', driverError)
+        console.error('❌ Error fetching driver or no driver found:', driverError)
+        setError('No driver profile found for your account. Please contact your coordinator.')
         setLoading(false)
         return
       }
 
-      // Get current assignment for this driver
+      console.log('✅ Driver found, fetching assignments')
+
+      // Get current assignment for this driver (simplified query first)
       const { data: assignmentData, error: assignmentError } = await supabase
         .from('assignments')
-        .select(`
-          *,
-          driver:driver_id(id, name, phone, email),
-          vehicle:vehicle_id(id, make, model, registration, pickup_location, pickup_mileage, pickup_fuel_gauge),
-          vip:vip_id(id, name, arrival_date, arrival_time, arrival_airport, arrival_terminal, departure_date, departure_time, departure_airport, departure_terminal, remarks)
-        `)
+        .select('*')
         .eq('driver_id', driverData.id)
         .in('status', ['scheduled', 'active'])
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
 
-      if (assignmentData) {
-        setAssignment(assignmentData)
+      if (assignmentError) {
+        console.error('❌ Assignment query error:', assignmentError)
+        setError('Error loading assignment data. Please refresh the page.')
+        setLoading(false)
+        return
+      }
+
+      if (assignmentData && assignmentData.length > 0) {
+        const assignment = assignmentData[0]
+        console.log('✅ Assignment found:', assignment)
+
+        // Fetch related data separately to avoid complex join issues
+        const [driverResult, vehicleResult, vipResult] = await Promise.all([
+          supabase.from('drivers').select('id, name, phone, email').eq('id', assignment.driver_id).single(),
+          supabase.from('vehicles').select('id, make, model, registration, pickup_location, pickup_mileage, pickup_fuel_gauge').eq('id', assignment.vehicle_id).single(),
+          assignment.vip_id ? supabase.from('vips').select('id, name, arrival_date, arrival_time, arrival_airport, arrival_terminal, departure_date, departure_time, departure_airport, departure_terminal, remarks').eq('id', assignment.vip_id).single() : Promise.resolve({ data: null, error: null })
+        ])
+
+        // Construct the assignment with details
+        const assignmentWithDetails: AssignmentWithDetails = {
+          ...assignment,
+          driver: driverResult.data,
+          vehicle: vehicleResult.data,
+          vip: vipResult.data
+        }
+
+        console.log('✅ Assignment loaded successfully')
+        setAssignment(assignmentWithDetails)
         
         // Fetch check-ins for this assignment
         const { data: checkinsData } = await supabase
           .from('checkins')
           .select('*')
-          .eq('assignment_id', assignmentData.id)
+          .eq('assignment_id', assignment.id)
           .order('timestamp', { ascending: false })
 
         setCheckins(checkinsData || [])
+      } else {
+        console.log('ℹ️ No active assignments found for this driver')
       }
 
     } catch (error) {
       console.error('Error fetching assignment:', error)
+      setError('Unexpected error loading dashboard. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -191,6 +225,52 @@ export default function DriverDashboard() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your assignment...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
+          <p className="text-gray-600 mt-1">Authentication Error</p>
+        </div>
+        
+        <Card>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Authentication Required</h3>
+            <p className="text-gray-600 mb-4">
+              Unable to load user data. Please log in again.
+            </p>
+            <Button onClick={() => window.location.href = '/'} className="bg-blue-600 hover:bg-blue-700">
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome, {currentUser?.name}</p>
+        </div>
+        
+        <Card>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Dashboard</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
+              Refresh Page
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

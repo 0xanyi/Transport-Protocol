@@ -40,8 +40,6 @@ export default function ImageUpload({
       key: url.split('/').pop() || '',
       publicUrl: url
     }))
-    console.log('ImageUpload: existingImages changed:', existingImages)
-    console.log('ImageUpload: setting images to:', existingImageObjects)
     setImages(existingImageObjects)
   }, [existingImages])
   const [uploading, setUploading] = useState<string[]>([])
@@ -66,8 +64,6 @@ export default function ImageUpload({
 
   const uploadImage = async (file: File): Promise<UploadedImage | null> => {
     try {
-      console.log('🔄 Starting server-side upload for:', file.name, 'Size:', file.size, 'Type:', file.type)
-      
       // Create form data for server-side upload
       const formData = new FormData()
       formData.append('file', file)
@@ -81,15 +77,12 @@ export default function ImageUpload({
         body: formData,
       })
 
-      console.log('📡 Server upload response status:', response.status)
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to upload file')
       }
 
       const { key, publicUrl } = await response.json()
-      console.log('✅ Upload successful:', publicUrl)
       
       return { key, publicUrl, file }
     } catch (error) {
@@ -118,12 +111,6 @@ export default function ImageUpload({
       
       const successfulUploads = uploadResults.filter(result => result !== null) as UploadedImage[]
       const newImages = [...images, ...successfulUploads]
-      
-      console.log('Adding new uploads to existing images:', {
-        existing: images.length,
-        newUploads: successfulUploads.length,
-        total: newImages.length
-      })
       
       setImages(newImages)
       onImagesChange(newImages)

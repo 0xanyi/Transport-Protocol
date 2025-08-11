@@ -5,8 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { Driver, Vehicle, VIP, AssignmentWithDetails } from '@/types'
-import { Calendar, User, Car, UserCheck, Plus, ArrowRight } from 'lucide-react'
+import { Calendar, User, Car, UserCheck, Plus, ArrowRight, Search, Filter, Zap } from 'lucide-react'
 import { format } from 'date-fns'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 
 export default function AssignmentsPage() {
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -36,15 +39,43 @@ export default function AssignmentsPage() {
         `).order('created_at', { ascending: false })
       ])
 
-      if (driversResult.error) throw driversResult.error
-      if (vehiclesResult.error) throw vehiclesResult.error
-      if (vipsResult.error) throw vipsResult.error
-      if (assignmentsResult.error) throw assignmentsResult.error
+      if (driversResult.error) {
+        console.error('Drivers fetch error:', driversResult.error)
+        throw driversResult.error
+      }
+      if (vehiclesResult.error) {
+        console.error('Vehicles fetch error:', vehiclesResult.error)
+        throw vehiclesResult.error
+      }
+      if (vipsResult.error) {
+        console.error('VIPs fetch error:', vipsResult.error)
+        throw vipsResult.error
+      }
+      if (assignmentsResult.error) {
+        console.error('Assignments fetch error:', assignmentsResult.error)
+        
+        // Check if it's a table not found error
+        if (assignmentsResult.error.message?.includes('relation "assignments" does not exist')) {
+          console.warn('Database schema not set up yet. Some features may not work.')
+          // Don't throw error, just set empty assignments
+          setAssignments([])
+        } else {
+          throw assignmentsResult.error
+        }
+      } else {
+        setAssignments(assignmentsResult.data || [])
+      }
+
+      console.log('Fetched data:', {
+        drivers: driversResult.data?.length,
+        vehicles: vehiclesResult.data?.length,
+        vips: vipsResult.data?.length,
+        assignments: assignmentsResult.data?.length
+      })
 
       setDrivers(driversResult.data || [])
       setVehicles(vehiclesResult.data || [])
       setVips(vipsResult.data || [])
-      setAssignments(assignmentsResult.data || [])
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -54,7 +85,7 @@ export default function AssignmentsPage() {
 
   const createAssignment = async (driverId: string, vehicleId: string, vipId?: string) => {
     try {
-      const supabase = createClient()
+      console.log('Creating assignment with:', { driverId, vehicleId, vipId })
       
       const assignmentData = {
         driver_id: driverId,
@@ -64,30 +95,58 @@ export default function AssignmentsPage() {
         status: 'scheduled' as const
       }
 
-      const { error } = await supabase
-        .from('assignments')
-        .insert([assignmentData])
+      // Use API route to handle assignment creation with proper permissions
+      const response = await fetch('/api/assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(assignmentData),
+      })
 
-      if (error) throw error
-
-      // Update vehicle assignment
-      await supabase
-        .from('vehicles')
-        .update({ current_driver_id: driverId })
-        .eq('id', vehicleId)
-
-      // Update VIP assignment if provided
-      if (vipId) {
-        await supabase
-          .from('vips')
-          .update({ assigned_driver_id: driverId })
-          .eq('id', vipId)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create assignment')
       }
 
-      // Refresh data
+      const data = await response.json()
+
+      console.log('Assignment created:', data)
+
+      // Refresh data to show the new assignment
       fetchData()
     } catch (error) {
       console.error('Error creating assignment:', error)
+      // Show user-friendly error message
+      alert('Failed to create assignment. Please check the console for details.')
+    }
+  }
+
+  const assignVipToExistingAssignment = async (vipId: string, driverId: string) => {
+    try {
+      console.log('Assigning VIP to existing assignment:', { vipId, driverId })
+      
+      // Use API route to handle VIP assignment with proper permissions
+      const response = await fetch('/api/assignments/assign-vip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ vipId, driverId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to assign VIP')
+      }
+
+      console.log('VIP assigned successfully')
+      
+      // Refresh data
+      fetchData()
+    } catch (error) {
+      console.error('Error assigning VIP to existing assignment:', error)
+      alert('Failed to assign VIP. Please check the console for details.')
     }
   }
 
@@ -180,71 +239,16 @@ export default function AssignmentsPage() {
         </Card>
       </div>
 
-      {/* Quick Assignment Section */}
+      {/* Smart Assignment Section */}
       {availableDrivers.length > 0 && availableVehicles.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Assignment</CardTitle>
-            <CardDescription>
-              Assign available drivers to vehicles (and optionally VIPs)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-4">
-              {availableDrivers.slice(0, 3).map((driver) => (
-                <div key={driver.id} className="border rounded-lg p-4">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">{driver.name}</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">{driver.church}</p>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Assign to Vehicle:</p>
-                    <div className="space-y-1">
-                      {availableVehicles.slice(0, 2).map((vehicle) => (
-                        <Button
-                          key={vehicle.id}
-                          size="sm"
-                          variant="outline"
-                          onClick={() => createAssignment(driver.id, vehicle.id)}
-                          className="w-full text-left justify-start"
-                        >
-                          <Car className="w-3 h-3 mr-2" />
-                          {vehicle.make} {vehicle.model} ({vehicle.registration})
-                        </Button>
-                      ))}
-                    </div>
-
-                    {unassignedVips.length > 0 && (
-                      <>
-                        <p className="text-sm font-medium mt-3">Or assign to VIP + Vehicle:</p>
-                        <div className="space-y-1">
-                          {unassignedVips.slice(0, 2).map((vip) => (
-                            <div key={vip.id} className="space-y-1">
-                              <p className="text-xs text-gray-600">{vip.name}</p>
-                              {availableVehicles.slice(0, 1).map((vehicle) => (
-                                <Button
-                                  key={`${vip.id}-${vehicle.id}`}
-                                  size="sm"
-                                  onClick={() => createAssignment(driver.id, vehicle.id, vip.id)}
-                                  className="w-full text-left justify-start bg-purple-600 hover:bg-purple-700"
-                                >
-                                  <UserCheck className="w-3 h-3 mr-2" />
-                                  Assign VIP + Vehicle
-                                </Button>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <SmartAssignmentSection 
+          drivers={availableDrivers}
+          vehicles={availableVehicles}
+          vips={unassignedVips}
+          assignments={assignments}
+          onAssign={createAssignment}
+          onAssignVip={assignVipToExistingAssignment}
+        />
       )}
 
       {/* Current Assignments */}
@@ -312,6 +316,432 @@ export default function AssignmentsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// Smart Assignment Component
+function SmartAssignmentSection({ 
+  drivers, 
+  vehicles, 
+  vips, 
+  assignments,
+  onAssign,
+  onAssignVip
+}: {
+  drivers: Driver[]
+  vehicles: Vehicle[]
+  vips: VIP[]
+  assignments: AssignmentWithDetails[]
+  onAssign: (driverId: string, vehicleId: string, vipId?: string) => void
+  onAssignVip: (vipId: string, driverId: string) => void
+}) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<'driver-vehicle' | 'vip-assignment' | 'complete'>('driver-vehicle')
+
+  const filteredDrivers = drivers.filter(driver =>
+    driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    driver.church.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* Assignment Tabs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-blue-600" />
+            Smart Assignment System
+          </CardTitle>
+          <CardDescription>
+            Choose your assignment workflow based on what information you have
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={activeTab === 'driver-vehicle' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('driver-vehicle')}
+              className="flex items-center gap-2"
+            >
+              <Car className="w-4 h-4" />
+              Driver → Vehicle
+            </Button>
+            <Button
+              variant={activeTab === 'vip-assignment' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('vip-assignment')}
+              className="flex items-center gap-2"
+            >
+              <UserCheck className="w-4 h-4" />
+              VIP → Assigned Driver
+            </Button>
+            <Button
+              variant={activeTab === 'complete' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('complete')}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Complete Assignment
+            </Button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search drivers by name or church..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'driver-vehicle' && (
+            <DriverVehicleAssignment 
+              drivers={filteredDrivers}
+              vehicles={vehicles}
+              onAssign={onAssign}
+            />
+          )}
+
+          {activeTab === 'vip-assignment' && (
+            <VipAssignment 
+              vips={vips}
+              drivers={drivers}
+              assignments={assignments}
+              onAssignVip={onAssignVip}
+            />
+          )}
+
+          {activeTab === 'complete' && (
+            <CompleteAssignment 
+              drivers={filteredDrivers}
+              vehicles={vehicles}
+              vips={vips}
+              onAssign={onAssign}
+            />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Driver → Vehicle Assignment
+function DriverVehicleAssignment({ 
+  drivers, 
+  vehicles, 
+  onAssign 
+}: {
+  drivers: Driver[]
+  vehicles: Vehicle[]
+  onAssign: (driverId: string, vehicleId: string) => void
+}) {
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 rounded-lg p-3">
+        <p className="text-sm text-blue-800">
+          <strong>Step 1:</strong> Assign drivers to vehicles. You can assign VIPs later.
+        </p>
+      </div>
+
+      {/* Driver Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-80 overflow-y-auto">
+        {drivers.map((driver) => (
+          <div 
+            key={driver.id} 
+            className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+              selectedDriver?.id === driver.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+            }`}
+            onClick={() => setSelectedDriver(selectedDriver?.id === driver.id ? null : driver)}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-blue-600" />
+              <span className="font-medium text-sm">{driver.name}</span>
+            </div>
+            <p className="text-xs text-gray-600 mb-2">{driver.church}</p>
+            <Badge variant="secondary" className="text-xs">Available</Badge>
+          </div>
+        ))}
+      </div>
+
+      {/* Vehicle Selection */}
+      {selectedDriver && (
+        <div className="border-t pt-4">
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="w-4 h-4 text-blue-600" />
+              <span className="font-medium">Selected: {selectedDriver.name}</span>
+              <Badge variant="outline">{selectedDriver.church}</Badge>
+            </div>
+            <p className="text-sm font-medium mb-3">Choose Vehicle:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {vehicles.map((vehicle) => (
+                <Button
+                  key={vehicle.id}
+                  variant="outline"
+                  onClick={() => {
+                    onAssign(selectedDriver.id, vehicle.id)
+                    setSelectedDriver(null)
+                  }}
+                  className="justify-start h-auto p-3"
+                >
+                  <Car className="w-4 h-4 mr-2 text-green-600" />
+                  <div className="text-left">
+                    <div className="font-medium text-sm">{vehicle.make} {vehicle.model}</div>
+                    <div className="text-xs text-gray-500">{vehicle.registration}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// VIP → Assigned Driver
+function VipAssignment({ 
+  vips, 
+  drivers, 
+  assignments,
+  onAssignVip 
+}: {
+  vips: VIP[]
+  drivers: Driver[]
+  assignments: AssignmentWithDetails[]
+  onAssignVip: (vipId: string, driverId: string) => void
+}) {
+  const [selectedVip, setSelectedVip] = useState<VIP | null>(null)
+
+  // Get drivers who already have vehicle assignments but no VIP
+  const assignedDrivers = assignments
+    .filter(a => (a.status === 'scheduled' || a.status === 'active') && !a.vip_id)
+    .map(a => ({
+      ...a.driver,
+      assignmentId: a.id,
+      vehicle: a.vehicle
+    }))
+    .filter(Boolean)
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-purple-50 rounded-lg p-3">
+        <p className="text-sm text-purple-800">
+          <strong>Step 2:</strong> Assign VIPs to drivers who already have vehicles assigned.
+        </p>
+      </div>
+
+      {/* VIP Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+        {vips.map((vip) => (
+          <div 
+            key={vip.id} 
+            className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
+              selectedVip?.id === vip.id ? 'ring-2 ring-purple-500 bg-purple-50' : 'hover:bg-gray-50'
+            }`}
+            onClick={() => setSelectedVip(selectedVip?.id === vip.id ? null : vip)}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck className="w-4 h-4 text-purple-600" />
+              <span className="font-medium text-sm">{vip.name}</span>
+            </div>
+            <p className="text-xs text-gray-600 mb-2">
+              {vip.arrival_date && format(new Date(vip.arrival_date), 'MMM dd')} - 
+              {vip.departure_date && format(new Date(vip.departure_date), 'MMM dd')}
+            </p>
+            <Badge variant="secondary" className="text-xs">Unassigned</Badge>
+          </div>
+        ))}
+      </div>
+
+      {/* Driver Selection */}
+      {selectedVip && (
+        <div className="border-t pt-4">
+          <div className="bg-purple-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <UserCheck className="w-4 h-4 text-purple-600" />
+              <span className="font-medium">Selected VIP: {selectedVip.name}</span>
+            </div>
+            <p className="text-sm font-medium mb-3">Assign to Driver with Vehicle:</p>
+            {assignedDrivers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {assignedDrivers.map((driverAssignment) => (
+                  <Button
+                    key={driverAssignment.id}
+                    variant="outline"
+                    onClick={() => {
+                      onAssignVip(selectedVip.id, driverAssignment.id)
+                      setSelectedVip(null)
+                    }}
+                    className="justify-start h-auto p-3"
+                  >
+                    <User className="w-4 h-4 mr-2 text-blue-600" />
+                    <div className="text-left">
+                      <div className="font-medium text-sm">{driverAssignment.name}</div>
+                      <div className="text-xs text-gray-500">{driverAssignment.church}</div>
+                      <div className="text-xs text-green-600 flex items-center gap-1">
+                        <Car className="w-3 h-3" />
+                        {driverAssignment.vehicle?.make} {driverAssignment.vehicle?.model}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <Car className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No drivers with vehicles available</p>
+                <p className="text-xs">Assign drivers to vehicles first</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Complete Assignment (Driver + Vehicle + VIP)
+function CompleteAssignment({ 
+  drivers, 
+  vehicles, 
+  vips, 
+  onAssign 
+}: {
+  drivers: Driver[]
+  vehicles: Vehicle[]
+  vips: VIP[]
+  onAssign: (driverId: string, vehicleId: string, vipId: string) => void
+}) {
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
+  const [selectedVip, setSelectedVip] = useState<VIP | null>(null)
+
+  const handleCompleteAssignment = () => {
+    if (selectedDriver && selectedVehicle && selectedVip) {
+      onAssign(selectedDriver.id, selectedVehicle.id, selectedVip.id)
+      setSelectedDriver(null)
+      setSelectedVehicle(null)
+      setSelectedVip(null)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-green-50 rounded-lg p-3">
+        <p className="text-sm text-green-800">
+          <strong>Complete Assignment:</strong> When you know the driver, vehicle, and VIP upfront.
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Driver Selection */}
+        <div>
+          <h4 className="font-medium mb-2 flex items-center gap-2">
+            <User className="w-4 h-4 text-blue-600" />
+            Select Driver
+          </h4>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {drivers.map((driver) => (
+              <div
+                key={driver.id}
+                className={`border rounded p-2 cursor-pointer text-sm ${
+                  selectedDriver?.id === driver.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => setSelectedDriver(driver)}
+              >
+                <div className="font-medium">{driver.name}</div>
+                <div className="text-xs text-gray-600">{driver.church}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Vehicle Selection */}
+        <div>
+          <h4 className="font-medium mb-2 flex items-center gap-2">
+            <Car className="w-4 h-4 text-green-600" />
+            Select Vehicle
+          </h4>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {vehicles.map((vehicle) => (
+              <div
+                key={vehicle.id}
+                className={`border rounded p-2 cursor-pointer text-sm ${
+                  selectedVehicle?.id === vehicle.id ? 'ring-2 ring-green-500 bg-green-50' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => setSelectedVehicle(vehicle)}
+              >
+                <div className="font-medium">{vehicle.make} {vehicle.model}</div>
+                <div className="text-xs text-gray-600">{vehicle.registration}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* VIP Selection */}
+        <div>
+          <h4 className="font-medium mb-2 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-purple-600" />
+            Select VIP
+          </h4>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {vips.map((vip) => (
+              <div
+                key={vip.id}
+                className={`border rounded p-2 cursor-pointer text-sm ${
+                  selectedVip?.id === vip.id ? 'ring-2 ring-purple-500 bg-purple-50' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => setSelectedVip(vip)}
+              >
+                <div className="font-medium">{vip.name}</div>
+                <div className="text-xs text-gray-600">
+                  {vip.arrival_date && format(new Date(vip.arrival_date), 'MMM dd')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Assignment Summary */}
+      {(selectedDriver || selectedVehicle || selectedVip) && (
+        <div className="border-t pt-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-medium mb-3">Assignment Summary:</h4>
+            <div className="flex items-center gap-4 mb-4">
+              <div className={`flex items-center gap-2 ${selectedDriver ? 'text-blue-600' : 'text-gray-400'}`}>
+                <User className="w-4 h-4" />
+                <span className="text-sm">{selectedDriver?.name || 'No driver selected'}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <div className={`flex items-center gap-2 ${selectedVehicle ? 'text-green-600' : 'text-gray-400'}`}>
+                <Car className="w-4 h-4" />
+                <span className="text-sm">
+                  {selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}` : 'No vehicle selected'}
+                </span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+              <div className={`flex items-center gap-2 ${selectedVip ? 'text-purple-600' : 'text-gray-400'}`}>
+                <UserCheck className="w-4 h-4" />
+                <span className="text-sm">{selectedVip?.name || 'No VIP selected'}</span>
+              </div>
+            </div>
+            <Button 
+              onClick={handleCompleteAssignment}
+              disabled={!selectedDriver || !selectedVehicle || !selectedVip}
+              className="w-full"
+            >
+              Create Complete Assignment
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
