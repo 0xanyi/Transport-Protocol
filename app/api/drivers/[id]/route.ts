@@ -81,7 +81,7 @@ export async function DELETE(
     // Check if driver exists
     const { data: existingDriver, error: fetchError } = await supabase
       .from('drivers')
-      .select('id, name')
+      .select('id, name, status')
       .eq('id', id)
       .single()
 
@@ -92,7 +92,40 @@ export async function DELETE(
       )
     }
 
-    // Delete driver
+    // Check for related records that would prevent deletion
+    const [
+      { data: assignments },
+      { data: checkins },
+      { data: observations },
+      { data: locationUpdates },
+      { data: assignedVips },
+      { data: assignedVehicles }
+    ] = await Promise.all([
+      supabase.from('assignments').select('id').eq('driver_id', id).limit(1),
+      supabase.from('checkins').select('id').eq('driver_id', id).limit(1),
+      supabase.from('vehicle_observations').select('id').eq('driver_id', id).limit(1),
+      supabase.from('location_updates').select('id').eq('driver_id', id).limit(1),
+      supabase.from('vips').select('id').eq('assigned_driver_id', id).limit(1),
+      supabase.from('vehicles').select('id').eq('current_driver_id', id).limit(1)
+    ])
+
+    const hasRelatedRecords = [
+      assignments,
+      checkins,
+      observations,
+      locationUpdates,
+      assignedVips,
+      assignedVehicles
+    ].some(records => records && records.length > 0)
+
+    if (hasRelatedRecords) {
+      return NextResponse.json({
+        error: 'Cannot delete driver with existing assignments, check-ins, or other related records. Consider setting the driver status to inactive instead.',
+        suggestion: 'Use the reject/deactivate option to disable this driver without losing historical data.'
+      }, { status: 409 })
+    }
+
+    // If no related records, proceed with deletion
     const { error } = await supabase
       .from('drivers')
       .delete()

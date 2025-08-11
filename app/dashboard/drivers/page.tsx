@@ -123,6 +123,13 @@ export default function DriversPage() {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
+        
+        // Handle specific error cases
+        if (response.status === 409) {
+          alert(`Cannot delete ${driverName}: ${err.error}\n\n${err.suggestion || 'Please use the reject/deactivate option instead.'}`)
+          return
+        }
+        
         throw new Error(err.error || 'Failed to delete driver')
       }
       
@@ -135,7 +142,8 @@ export default function DriversPage() {
       
     } catch (error) {
       console.error('Error deleting driver:', error)
-      alert('An unexpected error occurred while deleting. Please try again.')
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+      alert(`Error deleting driver: ${message}`)
     } finally {
       setUpdatingDriverId(null)
     }

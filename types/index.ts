@@ -181,9 +181,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'users', action: 'manage' }
   ],
   coordinator: [
-    { resource: 'drivers', action: 'read' },
-    { resource: 'vehicles', action: 'read' },
-    { resource: 'vips', action: 'read' },
+    { resource: 'drivers', action: 'manage' },
+    { resource: 'vehicles', action: 'manage' },
+    { resource: 'vips', action: 'manage' },
     { resource: 'assignments', action: 'manage' },
     { resource: 'location_updates', action: 'read' }
   ],
