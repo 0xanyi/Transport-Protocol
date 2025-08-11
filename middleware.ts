@@ -12,7 +12,9 @@ export async function middleware(request: NextRequest) {
     '/auth/register',
     '/api/auth/login',
     '/api/drivers', // Allow driver registration
-    '/api/debug' // Debug endpoints
+    '/api/debug', // Debug endpoints
+    '/api/upload', // Upload endpoints (temporarily public until auth is implemented)
+    '/api/images' // Image proxy endpoints
   ]
 
   // Check if the current path is public

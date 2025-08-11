@@ -36,6 +36,7 @@ export interface Vehicle {
   pickup_date: Date
   dropoff_mileage?: number
   dropoff_fuel_gauge?: number
+  dropoff_photos?: string[]
   dropoff_date?: Date
   current_driver_id?: string
   created_at: Date
