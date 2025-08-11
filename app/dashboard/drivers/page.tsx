@@ -73,20 +73,18 @@ export default function DriversPage() {
         
         alert('Driver approved successfully! Login credentials have been sent to their email.')
       } else {
-        // For rejection, use direct database update
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('drivers')
-          .update({ status: 'inactive' })
-          .eq('id', driverId)
-          .select()
+        // For rejection, call API so server uses service role client
+        const response = await fetch(`/api/drivers/${driverId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'inactive' })
+        })
 
-        if (error) {
-          console.error('Database error:', error)
-          alert(`Error rejecting driver: ${error.message}`)
-          return
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err.error || 'Failed to reject driver')
         }
-        
+
         // Update the local state
         setDrivers(prev => 
           prev.map(driver => 
@@ -121,16 +119,11 @@ export default function DriversPage() {
     try {
       console.log('Deleting driver:', { driverId, driverName })
       
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('drivers')
-        .delete()
-        .eq('id', driverId)
+      const response = await fetch(`/api/drivers/${driverId}`, { method: 'DELETE' })
 
-      if (error) {
-        console.error('Database error:', error)
-        alert(`Error deleting driver: ${error.message}`)
-        return
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to delete driver')
       }
       
       console.log('Delete successful')

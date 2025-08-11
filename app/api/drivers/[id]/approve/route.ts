@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getAuthContext, hasPermission } from '@/lib/auth'
 import { sendEmail, createDriverLoginEmail } from '@/lib/email'
 import bcrypt from 'bcryptjs'
@@ -37,7 +37,8 @@ export async function POST(
     }
 
     const { id } = await params
-    const supabase = await createClient()
+  // Use service client for writes so RLS doesn't block updates/creates
+  const supabase = createServiceClient()
 
     // Get driver details
     const { data: driver, error: driverError } = await supabase
@@ -72,7 +73,7 @@ export async function POST(
     if (existingUser) {
       // Update existing user
       userId = existingUser.id
-      await supabase
+  await supabase
         .from('users')
         .update({
           role: 'driver',
@@ -86,7 +87,7 @@ export async function POST(
       const saltRounds = 12
       const passwordHash = await bcrypt.hash(generatedPassword, saltRounds)
 
-      const { data: newUser, error: userError } = await supabase
+  const { data: newUser, error: userError } = await supabase
         .from('users')
         .insert({
           email: driver.email,
@@ -120,7 +121,7 @@ export async function POST(
     }
 
     // Update driver status to approved and link to user account
-    const { data: updatedDriver, error: updateError } = await supabase
+  const { data: updatedDriver, error: updateError } = await supabase
       .from('drivers')
       .update({
         status: 'approved',
