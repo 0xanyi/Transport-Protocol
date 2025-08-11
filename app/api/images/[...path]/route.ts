@@ -14,10 +14,11 @@ const BUCKET_NAME = process.env.CLOUDFLARE_R2_BUCKET_NAME || 'transport-protocol
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
-    const imagePath = params.path.join('/')
+    const resolvedParams = await params
+    const imagePath = resolvedParams.path.join('/')
     
     console.log('Fetching image from R2:', imagePath)
 
