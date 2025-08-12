@@ -68,6 +68,8 @@ export interface Assignment {
   start_time: Date
   end_time?: Date
   status: 'scheduled' | 'active' | 'completed'
+  activated_at?: Date
+  completed_at?: Date
   created_at: Date
   updated_at: Date
 }

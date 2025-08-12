@@ -161,6 +161,35 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    // Check if this is the first check-in for this assignment
+    // If so, activate the assignment
+    const { data: existingCheckins } = await supabase
+      .from('checkins')
+      .select('id')
+      .eq('assignment_id', assignment_id)
+      .eq('driver_id', driverData.id)
+
+    // If this is the first check-in (only the one we just created exists), activate the assignment
+    if (existingCheckins && existingCheckins.length === 1) {
+      console.log(`Activating assignment ${assignment_id} - first check-in detected`)
+      
+      const { error: updateError } = await supabase
+        .from('assignments')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assignment_id)
+        .eq('status', 'scheduled') // Only update if still scheduled
+
+      if (updateError) {
+        console.error('Error activating assignment:', updateError)
+        // Don't fail the check-in if assignment update fails
+      } else {
+        console.log(`Assignment ${assignment_id} successfully activated`)
+      }
+    }
+
     return NextResponse.json({ checkin: data }, { status: 201 })
 
   } catch (error) {
