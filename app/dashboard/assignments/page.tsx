@@ -575,8 +575,10 @@ function VipAssignment({
                     key={driverAssignment.id}
                     variant="outline"
                     onClick={() => {
-                      onAssignVip(selectedVip.id, driverAssignment.id)
-                      setSelectedVip(null)
+                      if (selectedVip?.id && driverAssignment?.id) {
+                        onAssignVip(selectedVip.id as string, driverAssignment.id as string)
+                        setSelectedVip(null)
+                      }
                     }}
                     className="justify-start h-auto p-3"
                   >
