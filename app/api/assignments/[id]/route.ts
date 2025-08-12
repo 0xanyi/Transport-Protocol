@@ -2,6 +2,83 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth'
 
+export const PUT = requirePermission('assignments', 'update', async (request: NextRequest, context, routeContext) => {
+  const params = await routeContext.params
+  const assignmentId = params.id
+  
+  if (!assignmentId) {
+    return NextResponse.json({ error: 'Assignment ID is required' }, { status: 400 })
+  }
+
+  try {
+    const body = await request.json()
+    const { vip_id, start_time, end_time } = body
+
+    const serviceSupabase = createServiceClient()
+
+    // First, get the current assignment to check what's changing
+    const { data: currentAssignment, error: fetchError } = await serviceSupabase
+      .from('assignments')
+      .select('*')
+      .eq('id', assignmentId)
+      .single()
+
+    if (fetchError || !currentAssignment) {
+      return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
+    }
+
+    // Build update object
+    const updateData: any = {}
+    if (start_time !== undefined) updateData.start_time = start_time
+    if (end_time !== undefined) updateData.end_time = end_time
+    if (vip_id !== undefined) updateData.vip_id = vip_id
+
+    // Update the assignment
+    const { data: updatedAssignment, error: updateError } = await serviceSupabase
+      .from('assignments')
+      .update(updateData)
+      .eq('id', assignmentId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating assignment:', updateError)
+      return NextResponse.json({ error: 'Failed to update assignment' }, { status: 500 })
+    }
+
+    // Handle VIP assignment changes
+    if (vip_id !== undefined) {
+      // If removing VIP assignment
+      if (vip_id === null && currentAssignment.vip_id) {
+        await serviceSupabase
+          .from('vips')
+          .update({ assigned_driver_id: null })
+          .eq('id', currentAssignment.vip_id)
+      }
+      // If adding or changing VIP assignment
+      else if (vip_id && vip_id !== currentAssignment.vip_id) {
+        // Clear old VIP assignment if exists
+        if (currentAssignment.vip_id) {
+          await serviceSupabase
+            .from('vips')
+            .update({ assigned_driver_id: null })
+            .eq('id', currentAssignment.vip_id)
+        }
+        // Set new VIP assignment
+        await serviceSupabase
+          .from('vips')
+          .update({ assigned_driver_id: currentAssignment.driver_id })
+          .eq('id', vip_id)
+      }
+    }
+
+    return NextResponse.json({ data: updatedAssignment })
+  } catch (error) {
+    console.error('Assignment update error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+})
+
 export const DELETE = requirePermission('assignments', 'delete', async (request: NextRequest, context, routeContext) => {
   const params = await routeContext.params
   const assignmentId = params.id

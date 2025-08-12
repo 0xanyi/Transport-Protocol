@@ -290,8 +290,17 @@ export function MobileNav({ currentUser }: MobileNavProps) {
                 </div>
               </div>
 
-              {/* Logout Button */}
-              <div className="p-4 border-t">
+              {/* Profile and Logout */}
+              <div className="p-4 border-t space-y-2">
+                <Link href="/dashboard/profile" onClick={closeMenu}>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start mobile-nav-item text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                  >
+                    <User className="w-5 h-5" />
+                    <span>Profile</span>
+                  </Button>
+                </Link>
                 <Button
                   variant="ghost"
                   onClick={handleLogout}

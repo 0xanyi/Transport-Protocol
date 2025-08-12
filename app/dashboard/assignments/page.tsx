@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { Driver, Vehicle, VIP, AssignmentWithDetails } from '@/types'
-import { Calendar, User, Car, UserCheck, Plus, ArrowRight, Search, Filter, Zap, Trash2, AlertTriangle } from 'lucide-react'
+import { Calendar, User, Car, UserCheck, Plus, ArrowRight, Search, Filter, Zap, Trash2, AlertTriangle, Edit } from 'lucide-react'
 import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,6 +18,8 @@ export default function AssignmentsPage() {
   const [vips, setVips] = useState<VIP[]>([])
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingAssignment, setEditingAssignment] = useState<AssignmentWithDetails | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -120,6 +122,36 @@ export default function AssignmentsPage() {
       console.error('Error creating assignment:', error)
       // Show user-friendly error message
       alert('Failed to create assignment. Please check the console for details.')
+    }
+  }
+
+  const updateAssignment = async (assignmentId: string, updateData: { vip_id?: string | null, start_time?: string, end_time?: string }) => {
+    try {
+      console.log('Updating assignment:', assignmentId, updateData)
+      
+      const response = await fetch(`/api/assignments/${assignmentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update assignment')
+      }
+
+      const data = await response.json()
+      console.log('Assignment updated successfully:', data)
+
+      // Refresh data to show the updated assignments
+      fetchData()
+      setShowEditModal(false)
+      setEditingAssignment(null)
+    } catch (error) {
+      console.error('Error updating assignment:', error)
+      alert('Failed to update assignment. Please check the console for details.')
     }
   }
 
@@ -337,6 +369,19 @@ export default function AssignmentsPage() {
                         {format(new Date(assignment.created_at), 'dd MMM HH:mm')}
                       </span>
                       
+                      {/* Edit Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingAssignment(assignment)
+                          setShowEditModal(true)
+                        }}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+
                       {/* Delete Button with Confirmation */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -389,6 +434,19 @@ export default function AssignmentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Assignment Modal */}
+      {showEditModal && editingAssignment && (
+        <EditAssignmentModal
+          assignment={editingAssignment}
+          vips={vips}
+          onUpdate={updateAssignment}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingAssignment(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -817,6 +875,134 @@ function CompleteAssignment({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+// Edit Assignment Modal Component
+function EditAssignmentModal({ 
+  assignment, 
+  vips, 
+  onUpdate, 
+  onClose 
+}: {
+  assignment: AssignmentWithDetails
+  vips: VIP[]
+  onUpdate: (assignmentId: string, updateData: { vip_id?: string | null, start_time?: string, end_time?: string }) => void
+  onClose: () => void
+}) {
+  const [selectedVipId, setSelectedVipId] = useState<string>(assignment.vip_id || '')
+  const [startTime, setStartTime] = useState(
+    assignment.start_time ? format(new Date(assignment.start_time), "yyyy-MM-dd'T'HH:mm") : ''
+  )
+  const [endTime, setEndTime] = useState(
+    assignment.end_time ? format(new Date(assignment.end_time), "yyyy-MM-dd'T'HH:mm") : ''
+  )
+
+  const handleSave = () => {
+    const updateData: { vip_id?: string | null, start_time?: string, end_time?: string } = {}
+    
+    // Only include fields that have changed
+    if (selectedVipId !== (assignment.vip_id || '')) {
+      updateData.vip_id = selectedVipId || null
+    }
+    
+    if (startTime && startTime !== format(new Date(assignment.start_time), "yyyy-MM-dd'T'HH:mm")) {
+      updateData.start_time = new Date(startTime).toISOString()
+    }
+    
+    if (endTime && endTime !== (assignment.end_time ? format(new Date(assignment.end_time), "yyyy-MM-dd'T'HH:mm") : '')) {
+      updateData.end_time = new Date(endTime).toISOString()
+    }
+
+    onUpdate(assignment.id, updateData)
+  }
+
+  // Get available VIPs (unassigned + currently assigned to this assignment)
+  const availableVips = vips.filter(vip => 
+    !vip.assigned_driver_id || vip.id === assignment.vip_id
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Edit Assignment</h3>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            ×
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Assignment Info */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2 mb-2">
+              <User className="w-4 h-4 text-blue-600" />
+              <span className="font-medium">{assignment.driver?.name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Car className="w-4 h-4 text-green-600" />
+              <span>{assignment.vehicle?.make} {assignment.vehicle?.model} ({assignment.vehicle?.registration})</span>
+            </div>
+          </div>
+
+          {/* VIP Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              VIP Assignment
+            </label>
+            <div className="relative">
+              <select
+                value={selectedVipId}
+                onChange={(e) => setSelectedVipId(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">No VIP</option>
+                {availableVips.map((vip) => (
+                  <option key={vip.id} value={vip.id}>
+                    {vip.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <UserCheck className="w-4 h-4 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Start Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Time
+            </label>
+            <Input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
+          </div>
+
+          {/* End Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Time (optional)
+            </label>
+            <Input
+              type="datetime-local"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3 mt-6">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+            Save Changes
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

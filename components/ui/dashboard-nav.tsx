@@ -156,24 +156,16 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
             </div>
             
             <div className="flex items-center space-x-4">
-              {currentUser && (
-                <div className="hidden xl:flex items-center space-x-2 text-sm text-gray-600">
+              <Link href="/dashboard/profile">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2 touch-target"
+                >
                   <User className="w-4 h-4" />
-                  <div className="flex flex-col">
-                    <span className="font-medium">{currentUser.name}</span>
-                    <div className="flex items-center space-x-2 text-xs">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded capitalize">
-                        {currentUser.role.replace('_', ' ')}
-                      </span>
-                      {currentUser.department && (
-                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded capitalize">
-                          {currentUser.department === 'all' ? 'All Depts' : currentUser.department}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                  <span className="hidden sm:inline">Profile</span>
+                </Button>
+              </Link>
               
               <Button
                 variant="ghost"

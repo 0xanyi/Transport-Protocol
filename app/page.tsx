@@ -140,9 +140,9 @@ export default function HomePage() {
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <a href="#" className="text-sm text-blue-600 hover:text-blue-500">
+                <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:text-blue-500">
                   Forgot password?
-                </a>
+                </Link>
               </div>
 
               {error && (

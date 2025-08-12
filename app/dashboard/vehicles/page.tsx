@@ -1,121 +1,153 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import ImageUpload from '@/components/ui/image-upload'
-import { createClient } from '@/lib/supabase/client'
-import { Vehicle } from '@/types'
-import { Car, Fuel, MapPin, Calendar, Plus, X, Camera, Eye, Edit, Trash2, MoreVertical } from 'lucide-react'
-import { format } from 'date-fns'
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import ImageUpload from "@/components/ui/image-upload";
+import { createClient } from "@/lib/supabase/client";
+import { Vehicle } from "@/types";
+import {
+  Car,
+  Fuel,
+  MapPin,
+  Calendar,
+  Plus,
+  X,
+  Camera,
+  Eye,
+  Edit,
+  Trash2,
+  MoreVertical,
+} from "lucide-react";
+import { format } from "date-fns";
 
 interface UploadedImage {
-  key: string
-  publicUrl: string
-  file?: File
+  key: string;
+  publicUrl: string;
+  file?: File;
 }
 
 export default function VehiclesPage() {
-  const router = useRouter()
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
-  const [showPhotos, setShowPhotos] = useState(false)
-  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+  const router = useRouter();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [showPhotos, setShowPhotos] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
+    null
+  );
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    make: '',
-    model: '',
-    registration: '',
+    make: "",
+    model: "",
+    registration: "",
     is_hired: true,
-    pickup_location: '',
-    pickup_mileage: '',
-    pickup_fuel_gauge: '',
-    pickup_date: new Date().toISOString().split('T')[0],
-  })
-  const [pickupPhotos, setPickupPhotos] = useState<UploadedImage[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    pickup_location: "",
+    pickup_mileage: "",
+    pickup_fuel_gauge: "",
+    pickup_date: new Date().toISOString().split("T")[0],
+  });
+  const [pickupPhotos, setPickupPhotos] = useState<UploadedImage[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchVehicles()
-  }, [])
+    fetchVehicles();
+  }, []);
 
   // Handle escape key for lightbox
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setLightboxImage(null)
+      if (e.key === "Escape") {
+        setLightboxImage(null);
       }
-    }
+    };
 
     if (lightboxImage) {
-      document.addEventListener('keydown', handleEscape)
+      document.addEventListener("keydown", handleEscape);
       // Prevent body scroll when lightbox is open
-      document.body.style.overflow = 'hidden'
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset'
+      document.body.style.overflow = "unset";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
-    }
-  }, [lightboxImage])
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [lightboxImage]);
 
   const fetchVehicles = async () => {
     try {
-      const supabase = createClient()
+      const supabase = createClient();
       const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .from("vehicles")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (error) throw error
-      console.log('Fetched vehicles:', data)
-      setVehicles(data || [])
+      if (error) throw error;
+      console.log("Fetched vehicles:", data);
+      setVehicles(data || []);
     } catch (error) {
-      console.error('Error fetching vehicles:', error)
+      console.error("Error fetching vehicles:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    setFormData(prev => ({
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    }))
-  }
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
     try {
-      const supabase = createClient()
-      
+      const supabase = createClient();
+
       // Validate required fields
-      if (!formData.make || !formData.model || !formData.registration || !formData.pickup_location) {
-        throw new Error('Please fill in all required fields')
+      if (
+        !formData.make ||
+        !formData.model ||
+        !formData.registration ||
+        !formData.pickup_location
+      ) {
+        throw new Error("Please fill in all required fields");
       }
 
-      const pickupMileage = parseInt(formData.pickup_mileage)
-      const pickupFuelGauge = parseInt(formData.pickup_fuel_gauge)
+      const pickupMileage = parseInt(formData.pickup_mileage);
+      const pickupFuelGauge = parseInt(formData.pickup_fuel_gauge);
 
       if (isNaN(pickupMileage) || pickupMileage < 0) {
-        throw new Error('Please enter a valid mileage')
+        throw new Error("Please enter a valid mileage");
       }
 
-      if (isNaN(pickupFuelGauge) || pickupFuelGauge < 0 || pickupFuelGauge > 100) {
-        throw new Error('Please enter a valid fuel gauge percentage (0-100)')
+      if (
+        isNaN(pickupFuelGauge) ||
+        pickupFuelGauge < 0 ||
+        pickupFuelGauge > 100
+      ) {
+        throw new Error("Please enter a valid fuel gauge percentage (0-100)");
       }
 
       // Prepare vehicle data with photos
@@ -123,79 +155,77 @@ export default function VehiclesPage() {
         ...formData,
         pickup_mileage: pickupMileage,
         pickup_fuel_gauge: pickupFuelGauge,
-        pickup_photos: pickupPhotos.map(photo => photo.publicUrl),
-      }
+        pickup_photos: pickupPhotos.map((photo) => photo.publicUrl),
+      };
 
-      console.log('Submitting vehicle data:', vehicleData)
-      console.log('Pickup photos:', pickupPhotos)
-      
-      const { error } = await supabase
-        .from('vehicles')
-        .insert([vehicleData])
+      const { error } = await supabase.from("vehicles").insert([vehicleData]);
 
-      if (error) throw error
-      
+      if (error) throw error;
+
       // Reset form and refresh list
       setFormData({
-        make: '',
-        model: '',
-        registration: '',
+        make: "",
+        model: "",
+        registration: "",
         is_hired: true,
-        pickup_location: '',
-        pickup_mileage: '',
-        pickup_fuel_gauge: '',
-        pickup_date: new Date().toISOString().split('T')[0],
-      })
-      setPickupPhotos([])
-      setShowAddForm(false)
-      fetchVehicles()
+        pickup_location: "",
+        pickup_mileage: "",
+        pickup_fuel_gauge: "",
+        pickup_date: new Date().toISOString().split("T")[0],
+      });
+      setPickupPhotos([]);
+      setShowAddForm(false);
+      fetchVehicles();
     } catch (error: any) {
-      console.error('Error adding vehicle:', error)
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
+      console.error("Error adding vehicle:", error);
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
-        full: error
-      })
-      
+        full: error,
+      });
+
       // Handle specific error types
-      let errorMessage = 'Failed to add vehicle. Please try again.'
-      
-      if (error?.message?.includes('new row violates row-level security policy')) {
-        errorMessage = 'Database access denied. Please check your permissions or contact an administrator.'
-      } else if (error?.code === 'PGRST301') {
-        errorMessage = 'Database permission error. The vehicles table may need proper access policies.'
+      let errorMessage = "Failed to add vehicle. Please try again.";
+
+      if (
+        error?.message?.includes("new row violates row-level security policy")
+      ) {
+        errorMessage =
+          "Database access denied. Please check your permissions or contact an administrator.";
+      } else if (error?.code === "PGRST301") {
+        errorMessage =
+          "Database permission error. The vehicles table may need proper access policies.";
       } else if (error instanceof Error) {
-        errorMessage = error.message
+        errorMessage = error.message;
       }
-      
-      setError(errorMessage)
+
+      setError(errorMessage);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleDelete = async (vehicleId: string) => {
     try {
-      const supabase = createClient()
+      const supabase = createClient();
       const { error } = await supabase
-        .from('vehicles')
+        .from("vehicles")
         .delete()
-        .eq('id', vehicleId)
+        .eq("id", vehicleId);
 
-      if (error) throw error
-      
-      setShowDeleteConfirm(null)
-      fetchVehicles()
+      if (error) throw error;
+
+      setShowDeleteConfirm(null);
+      fetchVehicles();
     } catch (error) {
-      console.error('Error deleting vehicle:', error)
-      setError(error instanceof Error ? error.message : 'Failed to delete vehicle')
+      console.error("Error deleting vehicle:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to delete vehicle"
+      );
     }
-  }
+  };
 
   const handleEdit = (vehicle: Vehicle) => {
-    console.log('Editing vehicle:', vehicle)
-    console.log('Existing pickup photos:', vehicle.pickup_photos)
-    
     setFormData({
       make: vehicle.make,
       model: vehicle.model,
@@ -204,114 +234,126 @@ export default function VehiclesPage() {
       pickup_location: vehicle.pickup_location,
       pickup_mileage: vehicle.pickup_mileage.toString(),
       pickup_fuel_gauge: vehicle.pickup_fuel_gauge.toString(),
-      pickup_date: new Date(vehicle.pickup_date).toISOString().split('T')[0],
-    })
-    
+      pickup_date: new Date(vehicle.pickup_date).toISOString().split("T")[0],
+    });
+
     // Load existing photos into the form
-    const existingPhotos = vehicle.pickup_photos?.map(url => ({
-      key: url.split('/').pop() || '',
-      publicUrl: url
-    })) || []
-    
-    console.log('Loading existing photos into form:', existingPhotos)
-    setPickupPhotos(existingPhotos)
-    setEditingVehicle(vehicle)
-    setShowAddForm(true)
-  }
+    const existingPhotos =
+      vehicle.pickup_photos?.map((url) => ({
+        key: url.split("/").pop() || "",
+        publicUrl: url,
+      })) || [];
+
+    console.log("Loading existing photos into form:", existingPhotos);
+    setPickupPhotos(existingPhotos);
+    setEditingVehicle(vehicle);
+    setShowAddForm(true);
+  };
 
   const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingVehicle) return
-    
-    setSubmitting(true)
-    setError(null)
-    
+    e.preventDefault();
+    if (!editingVehicle) return;
+
+    setSubmitting(true);
+    setError(null);
+
     try {
       // Validate required fields
-      if (!formData.make || !formData.model || !formData.registration || !formData.pickup_location) {
-        throw new Error('Please fill in all required fields')
+      if (
+        !formData.make ||
+        !formData.model ||
+        !formData.registration ||
+        !formData.pickup_location
+      ) {
+        throw new Error("Please fill in all required fields");
       }
 
-      const pickupMileage = parseInt(formData.pickup_mileage)
-      const pickupFuelGauge = parseInt(formData.pickup_fuel_gauge)
+      const pickupMileage = parseInt(formData.pickup_mileage);
+      const pickupFuelGauge = parseInt(formData.pickup_fuel_gauge);
 
       if (isNaN(pickupMileage) || pickupMileage < 0) {
-        throw new Error('Please enter a valid mileage')
+        throw new Error("Please enter a valid mileage");
       }
 
-      if (isNaN(pickupFuelGauge) || pickupFuelGauge < 0 || pickupFuelGauge > 100) {
-        throw new Error('Please enter a valid fuel gauge percentage (0-100)')
+      if (
+        isNaN(pickupFuelGauge) ||
+        pickupFuelGauge < 0 ||
+        pickupFuelGauge > 100
+      ) {
+        throw new Error("Please enter a valid fuel gauge percentage (0-100)");
       }
 
-      const supabase = createClient()
-      
+      const supabase = createClient();
+
       // Merge existing photos with new ones (don't replace, just add)
-      const allPhotos = pickupPhotos.map(photo => photo.publicUrl)
-      
+      const allPhotos = pickupPhotos.map((photo) => photo.publicUrl);
+
       const vehicleData = {
         ...formData,
         pickup_mileage: pickupMileage,
         pickup_fuel_gauge: pickupFuelGauge,
         pickup_photos: allPhotos,
-      }
-      
-      console.log('Updating vehicle with data:', vehicleData)
-      console.log('All photos (existing + new):', allPhotos)
-      console.log('Current pickupPhotos state:', pickupPhotos)
-      
-      const { error } = await supabase
-        .from('vehicles')
-        .update(vehicleData)
-        .eq('id', editingVehicle.id)
+      };
 
-      if (error) throw error
-      
+      console.log("Updating vehicle with data:", vehicleData);
+      console.log("All photos (existing + new):", allPhotos);
+      console.log("Current pickupPhotos state:", pickupPhotos);
+
+      const { error } = await supabase
+        .from("vehicles")
+        .update(vehicleData)
+        .eq("id", editingVehicle.id);
+
+      if (error) throw error;
+
       // Reset form and refresh list
       setFormData({
-        make: '',
-        model: '',
-        registration: '',
+        make: "",
+        model: "",
+        registration: "",
         is_hired: true,
-        pickup_location: '',
-        pickup_mileage: '',
-        pickup_fuel_gauge: '',
-        pickup_date: new Date().toISOString().split('T')[0],
-      })
-      setPickupPhotos([])
-      setEditingVehicle(null)
-      setShowAddForm(false)
-      fetchVehicles()
+        pickup_location: "",
+        pickup_mileage: "",
+        pickup_fuel_gauge: "",
+        pickup_date: new Date().toISOString().split("T")[0],
+      });
+      setPickupPhotos([]);
+      setEditingVehicle(null);
+      setShowAddForm(false);
+      fetchVehicles();
     } catch (error: any) {
-      console.error('Error updating vehicle:', error)
-      setError(error instanceof Error ? error.message : 'Failed to update vehicle')
+      console.error("Error updating vehicle:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to update vehicle"
+      );
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const cancelEdit = () => {
-    setEditingVehicle(null)
-    setShowAddForm(false)
+    setEditingVehicle(null);
+    setShowAddForm(false);
     setFormData({
-      make: '',
-      model: '',
-      registration: '',
+      make: "",
+      model: "",
+      registration: "",
       is_hired: true,
-      pickup_location: '',
-      pickup_mileage: '',
-      pickup_fuel_gauge: '',
-      pickup_date: new Date().toISOString().split('T')[0],
-    })
-    setPickupPhotos([])
-    setError(null)
-  }
+      pickup_location: "",
+      pickup_mileage: "",
+      pickup_fuel_gauge: "",
+      pickup_date: new Date().toISOString().split("T")[0],
+    });
+    setPickupPhotos([]);
+    setError(null);
+  };
 
   const getFuelGaugeColor = (gauge: number) => {
-    if (gauge >= 75) return 'text-green-600'
-    if (gauge >= 50) return 'text-yellow-600'
-    if (gauge >= 25) return 'text-orange-600'
-    return 'text-red-600'
-  }
+    if (gauge >= 75) return "text-green-600";
+    if (gauge >= 50) return "text-yellow-600";
+    if (gauge >= 25) return "text-orange-600";
+    return "text-red-600";
+  };
 
   if (loading) {
     return (
@@ -321,18 +363,24 @@ export default function VehiclesPage() {
           <p className="mt-4 text-gray-600">Loading vehicles...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Vehicle Management</h1>
-          <p className="text-gray-600 mt-1">Manage rental vehicles for the event</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Vehicle Management
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Manage rental vehicles for the event
+          </p>
         </div>
-        
-        <Button onClick={() => showAddForm ? cancelEdit() : setShowAddForm(true)}>
+
+        <Button
+          onClick={() => (showAddForm ? cancelEdit() : setShowAddForm(true))}
+        >
           {showAddForm ? (
             <>
               <X className="w-4 h-4 mr-2" />
@@ -354,18 +402,25 @@ export default function VehiclesPage() {
               {editingVehicle ? (
                 <>
                   Edit Vehicle: {editingVehicle.make} {editingVehicle.model}
-                  <span className="text-sm font-normal text-gray-600 ml-2">({editingVehicle.registration})</span>
+                  <span className="text-sm font-normal text-gray-600 ml-2">
+                    ({editingVehicle.registration})
+                  </span>
                 </>
               ) : (
-                'Add New Vehicle'
+                "Add New Vehicle"
               )}
             </CardTitle>
             <CardDescription>
-              {editingVehicle ? 'Update vehicle details and photos' : 'Enter vehicle pickup details'}
+              {editingVehicle
+                ? "Update vehicle details and photos"
+                : "Enter vehicle pickup details"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={editingVehicle ? handleUpdate : handleSubmit} className="space-y-4">
+            <form
+              onSubmit={editingVehicle ? handleUpdate : handleSubmit}
+              className="space-y-4"
+            >
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="make">Make *</Label>
@@ -378,7 +433,7 @@ export default function VehiclesPage() {
                     placeholder="Toyota"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="model">Model *</Label>
                   <Input
@@ -390,7 +445,7 @@ export default function VehiclesPage() {
                     placeholder="Camry"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="registration">Registration *</Label>
                   <Input
@@ -416,7 +471,7 @@ export default function VehiclesPage() {
                     placeholder="Heathrow Airport"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="pickup_date">Pickup Date *</Label>
                   <Input
@@ -443,7 +498,7 @@ export default function VehiclesPage() {
                     placeholder="25000"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="pickup_fuel_gauge">Fuel Gauge (%) *</Label>
                   <Input
@@ -482,8 +537,9 @@ export default function VehiclesPage() {
               <div className="space-y-2">
                 <Label>Pickup Photos</Label>
                 <p className="text-sm text-gray-600">
-                  Take photos of the vehicle condition at pickup. These will be used for comparison during return.
-                  {editingVehicle && ' Add more photos to the existing ones.'}
+                  Take photos of the vehicle condition at pickup. These will be
+                  used for comparison during return.
+                  {editingVehicle && " Add more photos to the existing ones."}
                 </p>
                 <ImageUpload
                   onImagesChange={setPickupPhotos}
@@ -495,7 +551,13 @@ export default function VehiclesPage() {
               </div>
 
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (editingVehicle ? 'Updating Vehicle...' : 'Adding Vehicle...') : (editingVehicle ? 'Update Vehicle' : 'Add Vehicle')}
+                {submitting
+                  ? editingVehicle
+                    ? "Updating Vehicle..."
+                    : "Adding Vehicle..."
+                  : editingVehicle
+                  ? "Update Vehicle"
+                  : "Add Vehicle"}
               </Button>
             </form>
           </CardContent>
@@ -508,19 +570,28 @@ export default function VehiclesPage() {
             <CardContent className="text-center py-12">
               <Car className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No vehicles added yet</p>
-              <p className="text-sm text-gray-400 mt-2">Click "Add Vehicle" to get started</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Click "Add Vehicle" to get started
+              </p>
             </CardContent>
           </Card>
         ) : (
           vehicles.map((vehicle) => (
-            <Card key={vehicle.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={vehicle.id}
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-2">
                     <Car className="w-5 h-5 text-blue-600" />
                     <div>
-                      <p className="font-semibold">{vehicle.make} {vehicle.model}</p>
-                      <p className="text-sm text-gray-600">{vehicle.registration}</p>
+                      <p className="font-semibold">
+                        {vehicle.make} {vehicle.model}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {vehicle.registration}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -529,10 +600,13 @@ export default function VehiclesPage() {
                         HIRED
                       </span>
                     )}
-                    {((vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)) > 0 && (
+                    {(vehicle.pickup_photos?.length || 0) +
+                      (vehicle.dropoff_photos?.length || 0) >
+                      0 && (
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full flex items-center">
                         <Camera className="w-3 h-3 mr-1" />
-                        {(vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)}
+                        {(vehicle.pickup_photos?.length || 0) +
+                          (vehicle.dropoff_photos?.length || 0)}
                       </span>
                     )}
                   </div>
@@ -544,30 +618,38 @@ export default function VehiclesPage() {
                       <MapPin className="w-3 h-3 mr-1" />
                       Location
                     </span>
-                    <span className="font-medium">{vehicle.pickup_location}</span>
+                    <span className="font-medium">
+                      {vehicle.pickup_location}
+                    </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="flex items-center text-gray-600">
                       <Calendar className="w-3 h-3 mr-1" />
                       Pickup
                     </span>
                     <span className="font-medium">
-                      {format(new Date(vehicle.pickup_date), 'dd MMM yyyy')}
+                      {format(new Date(vehicle.pickup_date), "dd MMM yyyy")}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Mileage</span>
-                    <span className="font-medium">{vehicle.pickup_mileage.toLocaleString()} mi</span>
+                    <span className="font-medium">
+                      {vehicle.pickup_mileage.toLocaleString()} mi
+                    </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="flex items-center text-gray-600">
                       <Fuel className="w-3 h-3 mr-1" />
                       Fuel
                     </span>
-                    <span className={`font-medium ${getFuelGaugeColor(vehicle.pickup_fuel_gauge)}`}>
+                    <span
+                      className={`font-medium ${getFuelGaugeColor(
+                        vehicle.pickup_fuel_gauge
+                      )}`}
+                    >
                       {vehicle.pickup_fuel_gauge}%
                     </span>
                   </div>
@@ -575,11 +657,15 @@ export default function VehiclesPage() {
 
                 {vehicle.current_driver_id ? (
                   <div className="mt-4 pt-4 border-t space-y-2">
-                    <p className="text-xs text-green-600 font-medium">ASSIGNED</p>
+                    <p className="text-xs text-green-600 font-medium">
+                      ASSIGNED
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}/return`)}
+                      onClick={() =>
+                        router.push(`/dashboard/vehicles/${vehicle.id}/return`)
+                      }
                       className="w-full text-xs"
                     >
                       Process Return
@@ -587,14 +673,18 @@ export default function VehiclesPage() {
                   </div>
                 ) : vehicle.dropoff_date ? (
                   <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs text-blue-600 font-medium">RETURNED</p>
+                    <p className="text-xs text-blue-600 font-medium">
+                      RETURNED
+                    </p>
                     <p className="text-xs text-gray-500">
-                      {format(new Date(vehicle.dropoff_date), 'dd MMM yyyy')}
+                      {format(new Date(vehicle.dropoff_date), "dd MMM yyyy")}
                     </p>
                   </div>
                 ) : (
                   <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs text-gray-400">Available for assignment</p>
+                    <p className="text-xs text-gray-400">
+                      Available for assignment
+                    </p>
                   </div>
                 )}
 
@@ -610,25 +700,29 @@ export default function VehiclesPage() {
                       <Edit className="w-3 h-3 mr-1" />
                       Edit
                     </Button>
-                    
+
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        console.log('Opening photo modal for vehicle:', vehicle)
-                        console.log('Pickup photos:', vehicle.pickup_photos)
-                        console.log('Dropoff photos:', vehicle.dropoff_photos)
-                        setSelectedVehicle(vehicle)
-                        setShowPhotos(true)
+                        setSelectedVehicle(vehicle);
+                        setShowPhotos(true);
                       }}
                       className="text-xs"
-                      disabled={((vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)) === 0}
+                      disabled={
+                        (vehicle.pickup_photos?.length || 0) +
+                          (vehicle.dropoff_photos?.length || 0) ===
+                        0
+                      }
                     >
                       <Eye className="w-3 h-3 mr-1" />
-                      Photos ({(vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)})
+                      Photos (
+                      {(vehicle.pickup_photos?.length || 0) +
+                        (vehicle.dropoff_photos?.length || 0)}
+                      )
                     </Button>
                   </div>
-                  
+
                   <Button
                     variant="ghost"
                     size="sm"
@@ -640,11 +734,17 @@ export default function VehiclesPage() {
                 </div>
 
                 <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
-                  <span>Added {format(new Date(vehicle.created_at), 'dd MMM')}</span>
-                  {((vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)) > 0 && (
+                  <span>
+                    Added {format(new Date(vehicle.created_at), "dd MMM")}
+                  </span>
+                  {(vehicle.pickup_photos?.length || 0) +
+                    (vehicle.dropoff_photos?.length || 0) >
+                    0 && (
                     <span className="flex items-center">
                       <Camera className="w-3 h-3 mr-1" />
-                      {(vehicle.pickup_photos?.length || 0) + (vehicle.dropoff_photos?.length || 0)} photos
+                      {(vehicle.pickup_photos?.length || 0) +
+                        (vehicle.dropoff_photos?.length || 0)}{" "}
+                      photos
                     </span>
                   )}
                 </div>
@@ -666,97 +766,91 @@ export default function VehiclesPage() {
                 <Button
                   variant="ghost"
                   onClick={() => {
-                    setShowPhotos(false)
-                    setSelectedVehicle(null)
+                    setShowPhotos(false);
+                    setSelectedVehicle(null);
                   }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
-              
-              <div className="space-y-6">
-                {/* Debug info */}
-                <div className="bg-gray-100 p-4 rounded-lg text-xs">
-                  <p><strong>Debug Info:</strong></p>
-                  <p>Pickup photos: {JSON.stringify(selectedVehicle.pickup_photos)}</p>
-                  <p>Dropoff photos: {JSON.stringify(selectedVehicle.dropoff_photos)}</p>
-                </div>
 
+              <div className="space-y-6">
                 {/* Pickup Photos */}
-                {selectedVehicle.pickup_photos && selectedVehicle.pickup_photos.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 flex items-center">
-                      <Camera className="w-5 h-5 mr-2 text-green-600" />
-                      Pickup Photos ({selectedVehicle.pickup_photos.length})
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {selectedVehicle.pickup_photos.map((photo, index) => {
-                        console.log('Rendering pickup photo:', photo)
-                        return (
-                          <div key={index} className="aspect-square rounded-lg overflow-hidden border bg-gray-50">
-                            <div className="w-full h-full flex flex-col">
-                              <img
-                                src={photo}
-                                alt={`Pickup photo ${index + 1}`}
-                                className="flex-1 w-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                                onClick={() => setLightboxImage(photo)}
-                                onError={(e) => {
-                                  console.error('Failed to load image:', photo)
-                                  const target = e.target as HTMLImageElement
-                                  target.style.display = 'none'
-                                }}
-                                onLoad={() => console.log('Successfully loaded image:', photo)}
-                              />
-                              <div className="p-2 text-xs text-gray-600 bg-white border-t">
-                                <p className="truncate" title={photo}>
-                                  {photo.split('/').pop()}
-                                </p>
-                                <a 
-                                  href={photo} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline"
-                                >
-                                  Test URL
-                                </a>
+                {selectedVehicle.pickup_photos &&
+                  selectedVehicle.pickup_photos.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <Camera className="w-5 h-5 mr-2 text-green-600" />
+                        Pickup Photos ({selectedVehicle.pickup_photos.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {selectedVehicle.pickup_photos.map((photo, index) => {
+                          console.log("Rendering pickup photo:", photo);
+                          return (
+                            <div
+                              key={index}
+                              className="aspect-square rounded-lg overflow-hidden border bg-gray-50"
+                            >
+                              <div className="w-full h-full flex flex-col">
+                                <img
+                                  src={photo}
+                                  alt={`Pickup photo ${index + 1}`}
+                                  className="flex-1 w-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                                  onClick={() => setLightboxImage(photo)}
+                                  onError={(e) => {
+                                    console.error(
+                                      "Failed to load image:",
+                                      photo
+                                    );
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                  }}
+                                />
                               </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Dropoff Photos */}
-                {selectedVehicle.dropoff_photos && selectedVehicle.dropoff_photos.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 flex items-center">
-                      <Camera className="w-5 h-5 mr-2 text-red-600" />
-                      Dropoff Photos ({selectedVehicle.dropoff_photos.length})
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {selectedVehicle.dropoff_photos.map((photo, index) => (
-                        <div key={index} className="aspect-square rounded-lg overflow-hidden border">
-                          <img
-                            src={photo}
-                            alt={`Dropoff photo ${index + 1}`}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                            onClick={() => setLightboxImage(photo)}
-                          />
-                        </div>
-                      ))}
+                {selectedVehicle.dropoff_photos &&
+                  selectedVehicle.dropoff_photos.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center">
+                        <Camera className="w-5 h-5 mr-2 text-red-600" />
+                        Dropoff Photos ({selectedVehicle.dropoff_photos.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {selectedVehicle.dropoff_photos.map((photo, index) => (
+                          <div
+                            key={index}
+                            className="aspect-square rounded-lg overflow-hidden border"
+                          >
+                            <img
+                              src={photo}
+                              alt={`Dropoff photo ${index + 1}`}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                              onClick={() => setLightboxImage(photo)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {(!selectedVehicle.pickup_photos || selectedVehicle.pickup_photos.length === 0) &&
-                 (!selectedVehicle.dropoff_photos || selectedVehicle.dropoff_photos.length === 0) && (
-                  <div className="text-center py-8">
-                    <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No photos available for this vehicle</p>
-                  </div>
-                )}
+                {(!selectedVehicle.pickup_photos ||
+                  selectedVehicle.pickup_photos.length === 0) &&
+                  (!selectedVehicle.dropoff_photos ||
+                    selectedVehicle.dropoff_photos.length === 0) && (
+                    <div className="text-center py-8">
+                      <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">
+                        No photos available for this vehicle
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -774,7 +868,7 @@ export default function VehiclesPage() {
             >
               <X className="w-6 h-6" />
             </button>
-            
+
             {/* Image */}
             <img
               src={lightboxImage}
@@ -782,14 +876,14 @@ export default function VehiclesPage() {
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
               onClick={() => setLightboxImage(null)}
             />
-            
+
             {/* Click outside to close */}
-            <div 
+            <div
               className="absolute inset-0 -z-10"
               onClick={() => setLightboxImage(null)}
             />
           </div>
-          
+
           {/* Instructions */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-full">
             Click image or X to close
@@ -806,15 +900,20 @@ export default function VehiclesPage() {
                 <Trash2 className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Delete Vehicle</h3>
-                <p className="text-sm text-gray-600">This action cannot be undone</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Delete Vehicle
+                </h3>
+                <p className="text-sm text-gray-600">
+                  This action cannot be undone
+                </p>
               </div>
             </div>
-            
+
             <p className="text-gray-700 mb-6">
-              Are you sure you want to delete this vehicle? All associated data including photos will be permanently removed.
+              Are you sure you want to delete this vehicle? All associated data
+              including photos will be permanently removed.
             </p>
-            
+
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"
@@ -834,5 +933,5 @@ export default function VehiclesPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

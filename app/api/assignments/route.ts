@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requirePermission } from '@/lib/auth'
+import { sendEmail, createAssignmentNotificationEmail } from '@/lib/email'
+import { format } from 'date-fns'
 
 export const POST = requirePermission('assignments', 'create', async (request: NextRequest) => {
   try {
@@ -45,6 +47,65 @@ export const POST = requirePermission('assignments', 'create', async (request: N
       if (vipError) {
         console.error('VIP update error:', vipError)
       }
+    }
+
+    // Send email notification to driver
+    try {
+      // Get driver details
+      const { data: driver, error: driverError } = await serviceSupabase
+        .from('drivers')
+        .select('name, email')
+        .eq('id', assignmentData.driver_id)
+        .single()
+
+      if (driverError) {
+        console.error('Driver fetch error for email:', driverError)
+      } else if (driver) {
+        // Get vehicle details
+        const { data: vehicle, error: vehicleError } = await serviceSupabase
+          .from('vehicles')
+          .select('make, model, registration')
+          .eq('id', assignmentData.vehicle_id)
+          .single()
+
+        // Get VIP details if assigned
+        let vip = null
+        if (assignmentData.vip_id) {
+          const { data: vipData, error: vipFetchError } = await serviceSupabase
+            .from('vips')
+            .select('name, arrival_airport, departure_airport')
+            .eq('id', assignmentData.vip_id)
+            .single()
+          
+          if (!vipFetchError) {
+            vip = vipData
+          }
+        }
+
+        const vehicleInfo = vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.registration})` : 'Vehicle details unavailable'
+        
+        const assignmentDetails = {
+          vipName: vip?.name,
+          vehicleInfo,
+          startTime: format(new Date(assignmentData.start_time), 'PPP p'),
+          endTime: assignmentData.end_time ? format(new Date(assignmentData.end_time), 'PPP p') : undefined,
+          pickupLocation: vip?.arrival_airport,
+          dropoffLocation: vip?.departure_airport,
+          specialInstructions: assignmentData.notes
+        }
+
+        const emailData = createAssignmentNotificationEmail(
+          driver.name,
+          driver.email,
+          assignmentDetails
+        )
+
+        await sendEmail(emailData)
+        console.log('Assignment notification email sent to:', driver.email)
+      }
+    } catch (emailError) {
+      console.error('Failed to send assignment notification email:', emailError)
+      // Don't fail the assignment creation if email fails
     }
 
     return NextResponse.json({ data })
