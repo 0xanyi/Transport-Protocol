@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
-import { AssignmentWithDetails, AuthUser, Checkin, VehicleObservation, CheckinType } from '@/types'
+import { AssignmentWithDetails, AuthUser, Checkin, VehicleObservation, CheckinType, DailyCheckinType, OneTimeCheckinType, CheckinProgress } from '@/types'
 import { 
   Car, 
   UserCheck, 
@@ -36,6 +36,10 @@ export default function DriverDashboard() {
   const [checkingIn, setCheckingIn] = useState(false)
   const [selectedCheckinType, setSelectedCheckinType] = useState<CheckinType | null>(null)
   const [checkinNotes, setCheckinNotes] = useState('')
+  const [checkinProgress, setCheckinProgress] = useState<CheckinProgress | null>(null)
+  const [selectedSession, setSelectedSession] = useState<string>('morning')
+  const [customLabel, setCustomLabel] = useState('')
+  const [currentEventDate, setCurrentEventDate] = useState<string>(new Date().toISOString().split('T')[0])
 
   // Vehicle observation states
   const [showVehicleForm, setShowVehicleForm] = useState(false)
@@ -129,6 +133,9 @@ export default function DriverDashboard() {
           .order('timestamp', { ascending: false })
 
         setCheckins(checkinsData || [])
+        
+        // Fetch check-in progress
+        await fetchCheckinProgress(assignment.id)
       } else {
         console.log('ℹ️ No active assignments found for this driver')
       }
@@ -141,41 +148,69 @@ export default function DriverDashboard() {
     }
   }
 
+  const fetchCheckinProgress = async (assignmentId: string) => {
+    try {
+      const response = await fetch(`/api/checkins/daily-status?assignment_id=${assignmentId}&event_date=${currentEventDate}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCheckinProgress(data.progress)
+      }
+    } catch (error) {
+      console.error('Error fetching check-in progress:', error)
+    }
+  }
+
   const handleCheckin = async () => {
     if (!selectedCheckinType || !assignment || !currentUser) return
 
     setCheckingIn(true)
     try {
-      const supabase = createClient()
+      // Determine if this is a daily check-in
+      const dailyCheckinTypes: DailyCheckinType[] = [
+        'hotel_to_events_venue',
+        'arrived_at_events_venue',
+        'departing_events_venue',
+        'arrived_at_hotel'
+      ]
       
-      // Get current location (optional - can be added later with geolocation API)
+      const isDailyCheckin = dailyCheckinTypes.includes(selectedCheckinType as DailyCheckinType)
+      
       const checkinData = {
-        driver_id: assignment.driver_id,
         assignment_id: assignment.id,
         checkin_type: selectedCheckinType,
         notes: checkinNotes.trim() || null,
-        timestamp: new Date().toISOString()
+        event_date: isDailyCheckin ? currentEventDate : undefined,
+        session_id: isDailyCheckin ? selectedSession : undefined,
+        custom_label: selectedCheckinType === 'custom' ? customLabel.trim() : undefined
       }
 
-      const { error } = await supabase
-        .from('checkins')
-        .insert([checkinData])
+      const response = await fetch('/api/checkins', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(checkinData)
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create check-in')
+      }
 
-      // Refresh checkins
-      const { data: updatedCheckins } = await supabase
-        .from('checkins')
-        .select('*')
-        .eq('assignment_id', assignment.id)
-        .order('timestamp', { ascending: false })
-
-      setCheckins(updatedCheckins || [])
+      // Refresh data
+      await Promise.all([
+        fetchDriverAssignment(currentUser.id),
+        fetchCheckinProgress(assignment.id)
+      ])
+      
+      // Reset form
       setSelectedCheckinType(null)
       setCheckinNotes('')
+      setCustomLabel('')
 
     } catch (error) {
       console.error('Error creating check-in:', error)
+      alert(error instanceof Error ? error.message : 'Failed to create check-in')
     } finally {
       setCheckingIn(false)
     }
@@ -297,22 +332,53 @@ export default function DriverDashboard() {
   }
 
   const getCheckinTypeLabel = (type: CheckinType) => {
-    const labels = {
+    const labels: Record<CheckinType, string> = {
+      // Daily Check-ins
+      hotel_to_events_venue: 'Hotel → Events Venue',
+      arrived_at_events_venue: 'Arrived at Events Venue',
+      departing_events_venue: 'Departing Events Venue',
+      arrived_at_hotel: 'Arrived at Hotel',
+      // One-time Check-ins
       airport_arrival: 'Airport Arrival',
       vip_pickup: 'VIP Pickup',
-      enroute_hotel: 'En Route to Hotel', 
+      custom: 'Custom Check-in',
+      // Legacy Check-ins (for backward compatibility)
+      enroute_hotel: 'En Route to Hotel',
       hotel_arrival: 'Hotel Arrival',
-      event_departure: 'Event Departure',
-      custom: 'Custom Check-in'
+      event_departure: 'Event Departure'
     }
-    return labels[type]
+    return labels[type] || type
   }
 
-  const isCheckinComplete = (type: CheckinType) => {
-    return checkins.some(c => c.checkin_type === type)
+  const isDailyCheckinComplete = (type: DailyCheckinType, session?: string) => {
+    if (!checkinProgress) return false
+    const dailyCheckin = checkinProgress.daily_checkins.find(c => c.checkin_type === type)
+    if (!dailyCheckin) return false
+    
+    if (session) {
+      return dailyCheckin.sessions[session]?.completed || false
+    }
+    return dailyCheckin.completed
   }
 
-  const checkinTypes: CheckinType[] = ['airport_arrival', 'vip_pickup', 'enroute_hotel', 'hotel_arrival', 'event_departure']
+  const isOneTimeCheckinComplete = (type: OneTimeCheckinType) => {
+    if (!checkinProgress) return false
+    if (type === 'custom') return false // Custom check-ins are unlimited
+    return checkinProgress.one_time_checkins[type]?.completed || false
+  }
+
+  const dailyCheckinTypes: DailyCheckinType[] = [
+    'hotel_to_events_venue',
+    'arrived_at_events_venue',
+    'departing_events_venue',
+    'arrived_at_hotel'
+  ]
+
+  const oneTimeCheckinTypes: OneTimeCheckinType[] = [
+    'airport_arrival',
+    'vip_pickup',
+    'custom'
+  ]
 
   return (
     <div className="space-y-6">
@@ -498,80 +564,183 @@ export default function DriverDashboard() {
         </Card>
       )}
 
-      {/* Check-in System */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Navigation className="w-5 h-5 text-blue-600" />
-            <span>Journey Check-ins</span>
-          </CardTitle>
-          <CardDescription>Check in at different stages of your journey</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Check-in Options */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {checkinTypes.map((type) => {
-                const completed = isCheckinComplete(type)
-                return (
-                  <Button
-                    key={type}
-                    onClick={() => setSelectedCheckinType(type)}
-                    variant={completed ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
-                    disabled={completed}
-                    className={`h-auto p-4 ${completed ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      {completed ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Clock className="w-4 h-4" />
-                      )}
-                      <span className="text-sm font-medium">{getCheckinTypeLabel(type)}</span>
-                    </div>
-                  </Button>
-                )
-              })}
+      {/* Enhanced Check-in System */}
+      <div className="space-y-6">
+        {/* Event Date Selector */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              <span>Event Date</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-4">
+              <Label htmlFor="event_date">Select Event Date:</Label>
+              <Input
+                id="event_date"
+                type="date"
+                value={currentEventDate}
+                onChange={(e) => {
+                  setCurrentEventDate(e.target.value)
+                  if (assignment) {
+                    fetchCheckinProgress(assignment.id)
+                  }
+                }}
+                className="w-auto"
+              />
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Check-in Form */}
-            {selectedCheckinType && (
-              <div className="border rounded-lg p-4 bg-blue-50">
-                <h4 className="font-medium mb-3">Check-in: {getCheckinTypeLabel(selectedCheckinType)}</h4>
-                
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="checkin_notes">Notes (Optional)</Label>
-                    <Textarea
-                      id="checkin_notes"
-                      placeholder={`Add any notes about ${getCheckinTypeLabel(selectedCheckinType).toLowerCase()}...`}
-                      value={checkinNotes}
-                      onChange={(e) => setCheckinNotes(e.target.value)}
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    <Button 
-                      onClick={handleCheckin}
-                      disabled={checkingIn}
-                      className="bg-blue-600 hover:bg-blue-700"
+        {/* Daily Check-ins */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Navigation className="w-5 h-5 text-green-600" />
+              <span>Daily Check-ins</span>
+            </CardTitle>
+            <CardDescription>These check-ins reset daily and support multiple sessions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-3">
+                {dailyCheckinTypes.map((type) => {
+                  const completed = isDailyCheckinComplete(type)
+                  return (
+                    <Button
+                      key={type}
+                      onClick={() => setSelectedCheckinType(type)}
+                      variant={completed ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
+                      className={`h-auto p-4 ${completed ? 'opacity-75' : ''}`}
                     >
-                      {checkingIn ? 'Checking in...' : 'Check In'}
+                      <div className="flex items-center space-x-2">
+                        {completed ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Clock className="w-4 h-4" />
+                        )}
+                        <span className="text-sm font-medium">{getCheckinTypeLabel(type)}</span>
+                      </div>
                     </Button>
-                    <Button 
-                      onClick={() => setSelectedCheckinType(null)}
-                      variant="outline"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
+                  )
+                })}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* One-time Check-ins */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <UserCheck className="w-5 h-5 text-purple-600" />
+              <span>One-time Check-ins</span>
+            </CardTitle>
+            <CardDescription>These check-ins are completed once per assignment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-3">
+                {oneTimeCheckinTypes.map((type) => {
+                  const completed = isOneTimeCheckinComplete(type)
+                  return (
+                    <Button
+                      key={type}
+                      onClick={() => setSelectedCheckinType(type)}
+                      variant={completed && type !== 'custom' ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
+                      disabled={completed && type !== 'custom'}
+                      className={`h-auto p-4 ${completed && type !== 'custom' ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        {completed && type !== 'custom' ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Clock className="w-4 h-4" />
+                        )}
+                        <span className="text-sm font-medium">{getCheckinTypeLabel(type)}</span>
+                      </div>
+                    </Button>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Check-in Form */}
+        {selectedCheckinType && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Check-in: {getCheckinTypeLabel(selectedCheckinType)}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Session Selection for Daily Check-ins */}
+              {dailyCheckinTypes.includes(selectedCheckinType as DailyCheckinType) && (
+                <div>
+                  <Label htmlFor="session">Session</Label>
+                  <select
+                    id="session"
+                    value={selectedSession}
+                    onChange={(e) => setSelectedSession(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="morning">Morning Session</option>
+                    <option value="evening">Evening Session</option>
+                    <option value="session_1">Session 1</option>
+                    <option value="session_2">Session 2</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Custom Label for Custom Check-ins */}
+              {selectedCheckinType === 'custom' && (
+                <div>
+                  <Label htmlFor="custom_label">Custom Check-in Label</Label>
+                  <Input
+                    id="custom_label"
+                    placeholder="Enter a description for this check-in..."
+                    value={customLabel}
+                    onChange={(e) => setCustomLabel(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <Label htmlFor="checkin_notes">Notes (Optional)</Label>
+                <Textarea
+                  id="checkin_notes"
+                  placeholder={`Add any notes about ${getCheckinTypeLabel(selectedCheckinType).toLowerCase()}...`}
+                  value={checkinNotes}
+                  onChange={(e) => setCheckinNotes(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button
+                  onClick={handleCheckin}
+                  disabled={checkingIn || (selectedCheckinType === 'custom' && !customLabel.trim())}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {checkingIn ? 'Checking in...' : 'Check In'}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSelectedCheckinType(null)
+                    setCheckinNotes('')
+                    setCustomLabel('')
+                  }}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Recent Check-ins */}
       {checkins.length > 0 && (
@@ -588,14 +757,66 @@ export default function DriverDashboard() {
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-4 h-4 text-green-600" />
                       <div>
-                        <p className="font-medium">{getCheckinTypeLabel(checkin.checkin_type)}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium">
+                            {checkin.checkin_type === 'custom' && checkin.custom_label
+                              ? checkin.custom_label
+                              : getCheckinTypeLabel(checkin.checkin_type)
+                            }
+                          </p>
+                          {checkin.is_daily_checkin && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              Daily
+                            </span>
+                          )}
+                          {checkin.session_id && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {checkin.session_id}
+                            </span>
+                          )}
+                        </div>
+                        {checkin.event_date && (
+                          <p className="text-xs text-gray-500">Event Date: {checkin.event_date}</p>
+                        )}
                         {checkin.notes && (
-                          <p className="text-sm text-gray-600">{checkin.notes}</p>
+                          <p className="text-sm text-gray-600 mt-1">{checkin.notes}</p>
                         )}
                       </div>
                     </div>
                     <div className="text-sm text-gray-500">
                       {format(new Date(checkin.timestamp), 'dd MMM HH:mm')}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Custom Check-ins History */}
+      {checkinProgress?.custom_checkins && checkinProgress.custom_checkins.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Custom Check-ins</CardTitle>
+            <CardDescription>Your custom check-ins for this assignment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {checkinProgress.custom_checkins.map((customCheckin) => (
+                <div key={customCheckin.id} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-4 h-4 text-purple-600" />
+                      <div>
+                        <p className="font-medium">{customCheckin.label}</p>
+                        {customCheckin.notes && (
+                          <p className="text-sm text-gray-600">{customCheckin.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {format(new Date(customCheckin.timestamp), 'dd MMM HH:mm')}
                     </div>
                   </div>
                 </div>

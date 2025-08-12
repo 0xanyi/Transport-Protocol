@@ -94,7 +94,23 @@ export interface LocationUpdate {
   created_at: Date
 }
 
-export type CheckinType = 'airport_arrival' | 'vip_pickup' | 'enroute_hotel' | 'hotel_arrival' | 'event_departure' | 'custom'
+// Daily Check-ins (reset daily, support multiple sessions)
+export type DailyCheckinType =
+  | 'hotel_to_events_venue'    // Hotel → Events Venue
+  | 'arrived_at_events_venue'  // Arrived at Events Venue
+  | 'departing_events_venue'   // Departing Events Venue
+  | 'arrived_at_hotel'         // Arrived at Hotel
+
+// One-time Check-ins (per assignment)
+export type OneTimeCheckinType =
+  | 'airport_arrival'          // Airport Arrival (for pickup)
+  | 'vip_pickup'              // VIP Pickup
+  | 'custom'                  // Custom (unlimited)
+
+// Legacy check-in types (for backward compatibility)
+export type LegacyCheckinType = 'enroute_hotel' | 'hotel_arrival' | 'event_departure'
+
+export type CheckinType = DailyCheckinType | OneTimeCheckinType | LegacyCheckinType
 
 export interface Checkin {
   id: string
@@ -106,6 +122,11 @@ export interface Checkin {
   notes?: string
   timestamp: Date
   created_at: Date
+  // New fields for enhanced check-in system
+  is_daily_checkin?: boolean
+  event_date?: string
+  session_id?: string
+  custom_label?: string
 }
 
 export interface VehicleObservation {
@@ -120,6 +141,70 @@ export interface VehicleObservation {
   photos?: string[]
   timestamp: Date
   created_at: Date
+}
+
+// New types for enhanced check-in system
+export interface CheckinSession {
+  id: string
+  label: string
+  description: string
+}
+
+export interface DailyCheckinStatus {
+  checkin_type: DailyCheckinType
+  completed: boolean
+  sessions: {
+    [session_id: string]: {
+      completed: boolean
+      timestamp?: Date
+      notes?: string
+    }
+  }
+}
+
+export interface CheckinProgress {
+  daily_checkins: DailyCheckinStatus[]
+  one_time_checkins: {
+    [key in OneTimeCheckinType]: {
+      completed: boolean
+      timestamp?: Date
+      notes?: string
+    }
+  }
+  custom_checkins: Array<{
+    id: string
+    label: string
+    timestamp: Date
+    notes?: string
+  }>
+}
+
+// Tracking dashboard types
+export interface DriverTrackingInfo {
+  driver_id: string
+  driver_name: string
+  driver_phone: string
+  assignment_id?: string
+  vip_name?: string
+  vehicle_info?: string
+  current_status: string
+  last_checkin?: Checkin
+  location?: {
+    latitude: number
+    longitude: number
+    address?: string
+  }
+  assignment_progress: CheckinProgress
+}
+
+export interface TrackingDashboardFilters {
+  driver_id?: string
+  assignment_status?: 'scheduled' | 'active' | 'completed'
+  date_range?: {
+    start: Date
+    end: Date
+  }
+  checkin_type?: CheckinType
 }
 
 export type UserRole = 'admin' | 'coordinator' | 'team_head' | 'driver'

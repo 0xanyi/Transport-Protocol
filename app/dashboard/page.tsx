@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { TrackingWidget } from '@/components/ui/tracking-widget'
 import { createClient } from '@/lib/supabase/client'
+import { AuthUser } from '@/types'
 import { Users, Car, Crown, Route, ArrowRight } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [stats, setStats] = useState({
     drivers: 0,
     vehicles: 0,
@@ -18,6 +21,13 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
+    // Get current user from session storage
+    const userDataString = sessionStorage.getItem('currentUser')
+    if (userDataString) {
+      const userData = JSON.parse(userDataString) as AuthUser
+      setCurrentUser(userData)
+    }
+    
     fetchStats()
   }, [])
 
@@ -163,6 +173,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tracking Widget - Only show for users with tracking access */}
+      <TrackingWidget
+        currentUser={currentUser}
+        maxItems={4}
+        showHeader={true}
+        compact={true}
+      />
     </div>
   )
 }

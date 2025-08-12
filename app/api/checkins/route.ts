@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
+import { DailyCheckinType, OneTimeCheckinType, CheckinType } from '@/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +12,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { assignment_id, checkin_type, latitude, longitude, notes, event_date } = body
+    const {
+      assignment_id,
+      checkin_type,
+      latitude,
+      longitude,
+      notes,
+      event_date,
+      session_id,
+      custom_label
+    } = body
 
     if (!assignment_id || !checkin_type) {
       return NextResponse.json(
@@ -21,19 +31,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Define which check-in types are daily (reset each day)
-    const dailyCheckinTypes = [
-      'hotel_to_barking',
-      'arriving_at_barking', 
-      'departing_barking',
-      'arriving_at_hotel'
+    const dailyCheckinTypes: DailyCheckinType[] = [
+      'hotel_to_events_venue',
+      'arrived_at_events_venue',
+      'departing_events_venue',
+      'arrived_at_hotel'
     ]
     
-    const isDailyCheckin = dailyCheckinTypes.includes(checkin_type)
+    // Define one-time check-in types
+    const oneTimeCheckinTypes: OneTimeCheckinType[] = [
+      'airport_arrival',
+      'vip_pickup',
+      'custom'
+    ]
     
-    // For daily check-ins, require event_date
+    const isDailyCheckin = dailyCheckinTypes.includes(checkin_type as DailyCheckinType)
+    const isOneTimeCheckin = oneTimeCheckinTypes.includes(checkin_type as OneTimeCheckinType)
+    
+    // Validation for daily check-ins
     if (isDailyCheckin && !event_date) {
       return NextResponse.json(
         { error: 'Event date is required for daily check-ins' },
+        { status: 400 }
+      )
+    }
+
+    // Validation for custom check-ins
+    if (checkin_type === 'custom' && !custom_label) {
+      return NextResponse.json(
+        { error: 'Custom label is required for custom check-ins' },
         { status: 400 }
       )
     }
@@ -63,9 +89,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Assignment not found or not authorized' }, { status: 403 })
     }
 
-    // For daily check-ins, check if one already exists for today
+    // For daily check-ins, check if one already exists for today/session
     if (isDailyCheckin) {
-      const { data: existingCheckin } = await supabase
+      let query = supabase
         .from('checkins')
         .select('id')
         .eq('driver_id', driverData.id)
@@ -73,11 +99,40 @@ export async function POST(request: NextRequest) {
         .eq('checkin_type', checkin_type)
         .eq('event_date', event_date)
         .eq('is_daily_checkin', true)
+
+      // If session_id is provided, check for that specific session
+      if (session_id) {
+        query = query.eq('session_id', session_id)
+      } else {
+        // If no session_id, check if any session exists for this type/date
+        query = query.is('session_id', null)
+      }
+
+      const { data: existingCheckin } = await query.single()
+
+      if (existingCheckin) {
+        const sessionText = session_id ? ` (${session_id})` : ''
+        return NextResponse.json(
+          { error: `You have already checked in for ${checkin_type}${sessionText} on ${event_date}` },
+          { status: 409 }
+        )
+      }
+    }
+
+    // For one-time check-ins (except custom), check if already exists for this assignment
+    if (isOneTimeCheckin && checkin_type !== 'custom') {
+      const { data: existingCheckin } = await supabase
+        .from('checkins')
+        .select('id')
+        .eq('driver_id', driverData.id)
+        .eq('assignment_id', assignment_id)
+        .eq('checkin_type', checkin_type)
+        .eq('is_daily_checkin', false)
         .single()
 
       if (existingCheckin) {
         return NextResponse.json(
-          { error: `You have already checked in for ${checkin_type} on ${event_date}` },
+          { error: `You have already completed ${checkin_type} for this assignment` },
           { status: 409 }
         )
       }
@@ -93,7 +148,9 @@ export async function POST(request: NextRequest) {
       notes: notes?.trim() || null,
       timestamp: new Date().toISOString(),
       is_daily_checkin: isDailyCheckin,
-      event_date: isDailyCheckin ? event_date : null
+      event_date: isDailyCheckin ? event_date : null,
+      session_id: session_id || null,
+      custom_label: checkin_type === 'custom' ? custom_label : null
     }
 
     const { data, error } = await supabase

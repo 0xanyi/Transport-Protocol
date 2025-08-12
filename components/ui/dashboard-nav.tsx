@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, Car, Calendar, UserCheck, LogOut, Home, User, Shield } from 'lucide-react'
+import { Users, Car, Calendar, UserCheck, LogOut, Home, User, Shield, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AuthUser } from '@/types'
+import { canAccessDepartment } from '@/lib/permissions'
 
 const navItems = [
   {
@@ -27,6 +28,12 @@ const navItems = [
     title: 'Assignments',
     href: '/dashboard/assignments',
     icon: Calendar,
+  },
+  {
+    title: 'Tracking',
+    href: '/dashboard/tracking',
+    icon: Navigation,
+    trackingAccess: true, // Special access for tracking dashboard
   },
   {
     title: 'Users',
@@ -67,12 +74,21 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
   const getVisibleNavItems = () => {
     if (!currentUser) return []
     
-    // Filter out admin-only and driver-only items based on user role
+    // Check if user has tracking access
+    const hasTrackingAccess = currentUser.role === 'admin' ||
+                             canAccessDepartment(currentUser, 'hospitality') ||
+                             canAccessDepartment(currentUser, 'lounge') ||
+                             canAccessDepartment(currentUser, 'transport')
+    
+    // Filter out admin-only, driver-only, and tracking items based on user role
     const filteredItems = navItems.filter((item: any) => {
       if (item.adminOnly && currentUser.role !== 'admin') {
         return false
       }
       if (item.driverOnly && currentUser.role !== 'driver') {
+        return false
+      }
+      if (item.trackingAccess && !hasTrackingAccess) {
         return false
       }
       return true
@@ -82,9 +98,9 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
       case 'admin':
         return filteredItems.filter(item => !item.driverOnly) // Admins see everything except driver-specific
       case 'coordinator':
-        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
+        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Tracking'].includes(item.title))
       case 'team_head':
-        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers'].includes(item.title))
+        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Tracking'].includes(item.title))
       case 'driver':
         return filteredItems.filter(item => ['My Dashboard'].includes(item.title))
       default:
