@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { TrackingWidget } from '@/components/ui/tracking-widget'
 import { createClient } from '@/lib/supabase/client'
 import { AuthUser } from '@/types'
-import { Users, Car, Crown, Route, ArrowRight } from 'lucide-react'
+import { hasTrackingOnlyAccess } from '@/lib/permissions'
+import { Users, Car, Crown, Route, ArrowRight, Navigation, MapPin, Clock, Activity } from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -90,6 +91,104 @@ export default function DashboardPage() {
     }
   ]
 
+  // Check if user has tracking-only access
+  const isTrackingOnly = currentUser ? hasTrackingOnlyAccess(currentUser) : false
+
+  // Render streamlined dashboard for restricted departments
+  if (isTrackingOnly) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Welcome to STPPL Transport</h1>
+          <p className="text-gray-600 mt-2">
+            {currentUser?.department === 'hospitality' && 'Hospitality Team Dashboard'}
+            {currentUser?.department === 'lounge' && 'Lounge Services Dashboard'}
+            {currentUser?.department === 'operations' && 'Operations Team Dashboard'}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">Real-time tracking and coordination</p>
+        </div>
+
+        {/* Welcome Information Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                <Navigation className="w-6 h-6 text-white" />
+              </div>
+              <CardTitle className="text-blue-900">Live Tracking</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-blue-800 text-sm">
+                Monitor real-time driver locations and status updates for seamless coordination
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mb-2">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <CardTitle className="text-green-900">Location Updates</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-green-800 text-sm">
+                Stay informed with automatic location updates and check-in notifications
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mb-2">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <CardTitle className="text-purple-900">Status Monitoring</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-purple-800 text-sm">
+                Track driver and guest movement status for optimal service coordination
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Access to Tracking */}
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center space-x-2">
+              <Navigation className="w-5 h-5 text-blue-600" />
+              <span>Access Tracking Dashboard</span>
+            </CardTitle>
+            <CardDescription>
+              View real-time driver locations and status updates
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button
+              onClick={() => router.push('/dashboard/tracking')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+              size="lg"
+            >
+              <Navigation className="w-5 h-5 mr-2" />
+              Open Tracking Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Tracking Widget - Compact view */}
+        <TrackingWidget
+          currentUser={currentUser}
+          maxItems={6}
+          showHeader={true}
+          compact={true}
+        />
+
+      </div>
+    )
+  }
+
+  // Regular dashboard for transport department and admins
   return (
     <div className="space-y-8">
       <div>
@@ -125,7 +224,7 @@ export default function DashboardPage() {
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
+            <Button
               onClick={() => router.push('/dashboard/drivers')}
               className="w-full justify-between"
               variant="outline"
@@ -133,7 +232,7 @@ export default function DashboardPage() {
               <span>Review Driver Applications</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button 
+            <Button
               onClick={() => router.push('/dashboard/assignments')}
               className="w-full justify-between"
               variant="outline"
@@ -141,7 +240,7 @@ export default function DashboardPage() {
               <span>Create New Assignment</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button 
+            <Button
               onClick={() => router.push('/dashboard/vehicles')}
               className="w-full justify-between"
               variant="outline"

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { Users, Car, Calendar, UserCheck, LogOut, Home, User, Shield, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AuthUser } from '@/types'
-import { canAccessDepartment } from '@/lib/permissions'
+import { canAccessDepartment, canViewResource, hasTrackingOnlyAccess } from '@/lib/permissions'
 
 const navItems = [
   {
@@ -70,17 +70,14 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
     }
   }
 
-  // Filter nav items based on user role
+  // Filter nav items based on user role and department
   const getVisibleNavItems = () => {
     if (!currentUser) return []
     
-    // Check if user has tracking access
-    const hasTrackingAccess = currentUser.role === 'admin' ||
-                             canAccessDepartment(currentUser, 'hospitality') ||
-                             canAccessDepartment(currentUser, 'lounge') ||
-                             canAccessDepartment(currentUser, 'transport')
+    // Check if user has tracking-only access (restricted departments)
+    const isTrackingOnly = hasTrackingOnlyAccess(currentUser)
     
-    // Filter out admin-only, driver-only, and tracking items based on user role
+    // Filter out admin-only, driver-only items
     const filteredItems = navItems.filter((item: any) => {
       if (item.adminOnly && currentUser.role !== 'admin') {
         return false
@@ -88,19 +85,31 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
       if (item.driverOnly && currentUser.role !== 'driver') {
         return false
       }
-      if (item.trackingAccess && !hasTrackingAccess) {
-        return false
-      }
       return true
     })
+    
+    // For tracking-only users (hospitality, lounge, operations), only show tracking
+    if (isTrackingOnly) {
+      return filteredItems.filter(item => item.title === 'Tracking')
+    }
     
     switch (currentUser.role) {
       case 'admin':
         return filteredItems.filter(item => !item.driverOnly) // Admins see everything except driver-specific
       case 'coordinator':
-        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Tracking'].includes(item.title))
+        // Transport coordinators see everything, others see only tracking
+        if (currentUser.department === 'transport') {
+          return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Vehicles', 'Tracking'].includes(item.title))
+        } else {
+          return filteredItems.filter(item => item.title === 'Tracking')
+        }
       case 'team_head':
-        return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Tracking'].includes(item.title))
+        // Transport team heads see everything, others see only tracking
+        if (currentUser.department === 'transport') {
+          return filteredItems.filter(item => ['VIPs', 'Assignments', 'Drivers', 'Vehicles', 'Tracking'].includes(item.title))
+        } else {
+          return filteredItems.filter(item => item.title === 'Tracking')
+        }
       case 'driver':
         return filteredItems.filter(item => ['My Dashboard'].includes(item.title))
       default:
@@ -113,7 +122,7 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/dashboard" className="flex items-center space-x-2">
               <Home className="w-5 h-5" />
               <span className="font-semibold text-lg">STPPL Transport</span>
             </Link>

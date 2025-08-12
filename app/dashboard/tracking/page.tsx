@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthUser, DriverTrackingInfo, TrackingDashboardFilters } from '@/types'
-import { canAccessDepartment } from '@/lib/permissions'
+import { canAccessDepartment, hasTrackingOnlyAccess } from '@/lib/permissions'
 import { 
   MapPin, 
   Clock, 
@@ -273,93 +273,102 @@ export default function TrackingDashboard() {
 
       {/* Tracking Cards */}
       <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredData.map((driver) => (
-          <Card key={driver.driver_id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center space-x-2">
-                  <User className="w-5 h-5 text-blue-600" />
-                  <span>{driver.driver_name}</span>
-                </CardTitle>
-                <Badge className={getStatusColor(driver.current_status)}>
-                  {driver.current_status}
-                </Badge>
-              </div>
-              <CardDescription className="flex items-center space-x-2">
-                <Phone className="w-4 h-4" />
-                <span>{driver.driver_phone}</span>
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* VIP Information */}
-              {driver.vip_name && (
-                <div className="bg-purple-50 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <User className="w-4 h-4 text-purple-600" />
-                    <span className="font-medium text-purple-900">VIP Assignment</span>
-                  </div>
-                  <p className="text-purple-800">{driver.vip_name}</p>
+        {filteredData.map((driver) => {
+          const isRestrictedUser = currentUser ? hasTrackingOnlyAccess(currentUser) : false
+          
+          return (
+            <Card key={driver.driver_id} className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center space-x-2">
+                    <User className="w-5 h-5 text-blue-600" />
+                    <span>{driver.driver_name}</span>
+                  </CardTitle>
+                  <Badge className={getStatusColor(driver.current_status)}>
+                    {driver.current_status}
+                  </Badge>
                 </div>
-              )}
-
-              {/* Vehicle Information */}
-              {driver.vehicle_info && (
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Car className="w-4 h-4 text-green-600" />
-                    <span className="font-medium text-green-900">Vehicle</span>
-                  </div>
-                  <p className="text-green-800">{driver.vehicle_info}</p>
-                </div>
-              )}
-
-              {/* Last Check-in */}
-              {driver.last_checkin && (
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <Navigation className="w-4 h-4 text-blue-600" />
-                      <span className="font-medium text-blue-900">Last Check-in</span>
+                {!isRestrictedUser && (
+                  <CardDescription className="flex items-center space-x-2">
+                    <Phone className="w-4 h-4" />
+                    <span>{driver.driver_phone}</span>
+                  </CardDescription>
+                )}
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                {/* VIP Information - Always show for restricted users as requested */}
+                {driver.vip_name && (
+                  <div className="bg-purple-50 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <User className="w-4 h-4 text-purple-600" />
+                      <span className="font-medium text-purple-900">VIP Assignment</span>
                     </div>
-                    <div className="flex items-center space-x-1 text-xs text-blue-700">
-                      <Clock className="w-3 h-3" />
-                      <span>{format(new Date(driver.last_checkin.timestamp), 'HH:mm')}</span>
+                    <p className="text-purple-800">{driver.vip_name}</p>
+                  </div>
+                )}
+
+                {/* Vehicle Information - Hide for restricted users */}
+                {driver.vehicle_info && !isRestrictedUser && (
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Car className="w-4 h-4 text-green-600" />
+                      <span className="font-medium text-green-900">Vehicle</span>
                     </div>
+                    <p className="text-green-800">{driver.vehicle_info}</p>
                   </div>
-                  <p className="text-blue-800 text-sm">
-                    {driver.last_checkin.checkin_type === 'custom' && driver.last_checkin.custom_label
-                      ? driver.last_checkin.custom_label
-                      : driver.last_checkin.checkin_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-                    }
-                  </p>
-                  {driver.last_checkin.session_id && (
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {driver.last_checkin.session_id}
-                    </Badge>
-                  )}
-                  {driver.last_checkin.notes && (
-                    <p className="text-blue-700 text-xs mt-1">{driver.last_checkin.notes}</p>
-                  )}
-                </div>
-              )}
+                )}
 
-              {/* Location */}
-              {driver.location && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <MapPin className="w-4 h-4 text-gray-600" />
-                    <span className="font-medium text-gray-900">Location</span>
+                {/* Last Check-in */}
+                {driver.last_checkin && (
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Navigation className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-900">Last Check-in</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-xs text-blue-700">
+                        <Clock className="w-3 h-3" />
+                        <span>{format(new Date(driver.last_checkin.timestamp), 'HH:mm')}</span>
+                      </div>
+                    </div>
+                    <p className="text-blue-800 text-sm">
+                      {driver.last_checkin.checkin_type === 'custom' && driver.last_checkin.custom_label
+                        ? driver.last_checkin.custom_label
+                        : driver.last_checkin.checkin_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                      }
+                    </p>
+                    {driver.last_checkin.session_id && !isRestrictedUser && (
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        {driver.last_checkin.session_id}
+                      </Badge>
+                    )}
+                    {driver.last_checkin.notes && !isRestrictedUser && (
+                      <p className="text-blue-700 text-xs mt-1">{driver.last_checkin.notes}</p>
+                    )}
                   </div>
-                  <p className="text-gray-700 text-sm">
-                    {driver.location.address || `${driver.location.latitude}, ${driver.location.longitude}`}
-                  </p>
-                </div>
-              )}
+                )}
 
-            </CardContent>
-          </Card>
-        ))}
+                {/* Location - Show general location for restricted users */}
+                {driver.location && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <MapPin className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-900">Location</span>
+                    </div>
+                    <p className="text-gray-700 text-sm">
+                      {isRestrictedUser
+                        ? (driver.location.address ? driver.location.address.split(',')[0] : 'Location available')
+                        : (driver.location.address || `${driver.location.latitude}, ${driver.location.longitude}`)
+                      }
+                    </p>
+                  </div>
+                )}
+
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {filteredData.length === 0 && (

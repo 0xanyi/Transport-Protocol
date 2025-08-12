@@ -48,40 +48,56 @@ export function canManageResource(
   resource: string,
   resourceDepartment?: DepartmentType
 ): boolean {
-  // Admins can manage everything
+  // Resource-specific rules - only transport department can manage most resources
+  switch (resource) {
+    case 'drivers':
+      return (user.role === 'admin') || (user.role === 'coordinator' && user.department === 'transport')
+    
+    case 'vehicles':
+      return (user.role === 'admin') || (user.role === 'coordinator' && user.department === 'transport')
+    
+    case 'vips':
+      // Only transport coordinators can manage VIPs now
+      return (user.role === 'admin') || (user.role === 'coordinator' && user.department === 'transport')
+    
+    case 'assignments':
+      return (user.role === 'admin') || (user.role === 'coordinator' && user.department === 'transport')
+    
+    case 'users':
+      return user.role === 'admin'
+    
+    default:
+      return user.role === 'admin'
+  }
+}
+
+// New function to check if user can view resources (read-only)
+export function canViewResource(
+  user: AuthUser,
+  resource: string
+): boolean {
+  // Admins can view everything
   if (user.role === 'admin') {
     return true
   }
 
-  // Coordinators can manage resources in their department
-  if (user.role === 'coordinator' && resourceDepartment) {
-    return canAccessDepartment(user, resourceDepartment)
+  // Transport department can view everything
+  if (user.department === 'transport') {
+    return true
   }
 
-  // Team heads have read-only access in their department
-  if (user.role === 'team_head' && resourceDepartment) {
-    return canAccessDepartment(user, resourceDepartment)
+  // Restricted departments can only view tracking
+  if (['hospitality', 'lounge', 'operations'].includes(user.department)) {
+    return resource === 'tracking'
   }
 
-  // Resource-specific rules
-  switch (resource) {
-    case 'drivers':
-      return (user.role === 'coordinator' && user.department === 'transport')
-    
-    case 'vehicles':
-      return (user.role === 'coordinator' && user.department === 'transport')
-    
-    case 'vips':
-      // VIPs can be managed by hospitality and transport coordinators
-      return (user.role === 'coordinator' && 
-        (user.department === 'hospitality' || user.department === 'transport'))
-    
-    case 'assignments':
-      return (user.role === 'coordinator' && user.department === 'transport')
-    
-    default:
-      return false
-  }
+  return false
+}
+
+// Check if user has tracking-only access (restricted departments)
+export function hasTrackingOnlyAccess(user: AuthUser): boolean {
+  return ['hospitality', 'lounge', 'operations'].includes(user.department) &&
+         user.role !== 'admin'
 }
 
 export const DEPARTMENT_COLORS: Record<DepartmentType, string> = {

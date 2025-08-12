@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DashboardNav } from '@/components/ui/dashboard-nav'
 import { AuthUser } from '@/types'
+import { hasTrackingOnlyAccess } from '@/lib/permissions'
 
 export default function DashboardLayout({
   children,
@@ -36,6 +37,22 @@ export default function DashboardLayout({
       if (userData.role === 'driver' && window.location.pathname === '/dashboard') {
         router.push('/dashboard/driver')
         return
+      }
+      
+      // Check if user is trying to access restricted pages
+      const currentPath = window.location.pathname
+      const isRestrictedUser = hasTrackingOnlyAccess(userData)
+      
+      if (isRestrictedUser) {
+        // Restricted users can only access dashboard and tracking
+        const allowedPaths = ['/dashboard', '/dashboard/tracking']
+        const isAllowedPath = allowedPaths.some(path => currentPath === path || currentPath.startsWith(path))
+        
+        if (!isAllowedPath) {
+          console.log('🚫 Restricted user trying to access unauthorized page, redirecting to dashboard')
+          router.push('/dashboard')
+          return
+        }
       }
     } catch (error) {
       console.error('❌ Error parsing user data:', error)
