@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { AssignmentWithDetails, AuthUser, Checkin, VehicleObservation, CheckinType, DailyCheckinType, OneTimeCheckinType, CheckinProgress } from '@/types'
-import { 
-  Car, 
-  UserCheck, 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Phone, 
+import {
+  Car,
+  UserCheck,
+  Calendar,
+  MapPin,
+  Clock,
+  Phone,
   Mail,
   Plane,
   Hotel,
@@ -26,6 +26,7 @@ import { format } from 'date-fns'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MobileDatePicker } from '@/components/ui/mobile-date-picker'
 
 export default function DriverDashboard() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
@@ -381,10 +382,10 @@ export default function DriverDashboard() {
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome, {currentUser?.name}</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="text-center sm:text-left">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Dashboard</h1>
+        <p className="text-gray-600 mt-1 mobile-text">Welcome, {currentUser?.name}</p>
       </div>
 
       {/* Assignment Overview */}
@@ -396,8 +397,8 @@ export default function DriverDashboard() {
           </CardTitle>
           <CardDescription>Your active transportation assignment</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
+        <CardContent className="mobile-padding">
+          <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
             {/* VIP Details */}
             {assignment.vip && (
               <div className="space-y-4">
@@ -406,29 +407,29 @@ export default function DriverDashboard() {
                   <h3 className="text-lg font-semibold">VIP Details</h3>
                 </div>
                 
-                <div className="bg-purple-50 rounded-lg p-4 space-y-3">
+                <div className="bg-purple-50 rounded-lg mobile-padding space-y-3">
                   <div>
                     <p className="font-medium text-lg">{assignment.vip.name}</p>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Plane className="w-4 h-4 text-green-600" />
-                      <div>
-                        <p className="text-gray-600">Arrival</p>
-                        <p className="font-medium">{format(new Date(assignment.vip.arrival_date), 'dd MMM yyyy')}</p>
-                        <p>{assignment.vip.arrival_time}</p>
-                        <p className="text-xs text-gray-500">{assignment.vip.arrival_airport} - {assignment.vip.arrival_terminal}</p>
+                  <div className="space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
+                    <div className="flex items-start space-x-3 p-3 bg-white rounded-lg">
+                      <Plane className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-600">Arrival</p>
+                        <p className="font-semibold text-gray-900">{format(new Date(assignment.vip.arrival_date), 'dd MMM yyyy')}</p>
+                        <p className="text-sm text-gray-700">{assignment.vip.arrival_time}</p>
+                        <p className="text-xs text-gray-500 truncate">{assignment.vip.arrival_airport} - {assignment.vip.arrival_terminal}</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <Plane className="w-4 h-4 text-red-600" />
-                      <div>
-                        <p className="text-gray-600">Departure</p>
-                        <p className="font-medium">{format(new Date(assignment.vip.departure_date), 'dd MMM yyyy')}</p>
-                        <p>{assignment.vip.departure_time}</p>
-                        <p className="text-xs text-gray-500">{assignment.vip.departure_airport} - {assignment.vip.departure_terminal}</p>
+                    <div className="flex items-start space-x-3 p-3 bg-white rounded-lg">
+                      <Plane className="w-5 h-5 text-red-600 mt-1 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-600">Departure</p>
+                        <p className="font-semibold text-gray-900">{format(new Date(assignment.vip.departure_date), 'dd MMM yyyy')}</p>
+                        <p className="text-sm text-gray-700">{assignment.vip.departure_time}</p>
+                        <p className="text-xs text-gray-500 truncate">{assignment.vip.departure_airport} - {assignment.vip.departure_terminal}</p>
                       </div>
                     </div>
                   </div>
@@ -451,35 +452,45 @@ export default function DriverDashboard() {
                   <h3 className="text-lg font-semibold">Vehicle Details</h3>
                 </div>
                 
-                <div className="bg-green-50 rounded-lg p-4 space-y-3">
-                  <div>
-                    <p className="font-medium text-lg">{assignment.vehicle.make} {assignment.vehicle.model}</p>
-                    <p className="text-gray-600">Registration: {assignment.vehicle.registration}</p>
+                <div className="bg-green-50 rounded-lg mobile-padding space-y-4">
+                  <div className="text-center sm:text-left">
+                    <p className="font-semibold text-lg text-gray-900">{assignment.vehicle.make} {assignment.vehicle.model}</p>
+                    <p className="text-gray-600 mobile-text">Registration: {assignment.vehicle.registration}</p>
                   </div>
                   
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-blue-600" />
-                      <span>Pickup: {assignment.vehicle.pickup_location}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3 p-2 bg-white rounded-md">
+                      <MapPin className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Pickup Location</p>
+                        <p className="text-sm text-gray-900">{assignment.vehicle.pickup_location}</p>
+                      </div>
                     </div>
                     
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <Gauge className="w-4 h-4 text-gray-600" />
-                        <span>Mileage: {assignment.vehicle.pickup_mileage}</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center space-x-2 p-2 bg-white rounded-md">
+                        <Gauge className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500">Mileage</p>
+                          <p className="text-sm font-medium">{assignment.vehicle.pickup_mileage}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Fuel className="w-4 h-4 text-gray-600" />
-                        <span>Fuel: {assignment.vehicle.pickup_fuel_gauge}/8</span>
+                      <div className="flex items-center space-x-2 p-2 bg-white rounded-md">
+                        <Fuel className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-gray-500">Fuel Level</p>
+                          <p className="text-sm font-medium">{assignment.vehicle.pickup_fuel_gauge}/8</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                   
-                  <Button 
+                  <Button
                     onClick={() => setShowVehicleForm(!showVehicleForm)}
-                    variant="outline" 
-                    size="sm"
-                    className="w-full"
+                    variant="outline"
+                    size="mobile"
+                    fullWidth
+                    className="touch-target"
                   >
                     {showVehicleForm ? 'Hide' : 'Record'} Vehicle Observations
                   </Button>
@@ -497,18 +508,18 @@ export default function DriverDashboard() {
             <CardTitle>Vehicle Observation</CardTitle>
             <CardDescription>Record current vehicle condition and details</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="observation_type">Observation Type</Label>
+          <CardContent className="mobile-padding space-y-4">
+            <div className="space-y-4 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 sm:space-y-0">
+              <div className="space-y-2">
+                <Label htmlFor="observation_type" className="mobile-text">Observation Type</Label>
                 <select
                   id="observation_type"
                   value={vehicleObservation.observation_type}
                   onChange={(e) => setVehicleObservation(prev => ({
-                    ...prev, 
+                    ...prev,
                     observation_type: e.target.value as 'pickup' | 'dropoff' | 'maintenance_issue'
                   }))}
-                  className="w-full p-2 border rounded-md"
+                  className="mobile-input w-full"
                 >
                   <option value="pickup">Vehicle Pickup</option>
                   <option value="dropoff">Vehicle Dropoff</option>
@@ -516,19 +527,20 @@ export default function DriverDashboard() {
                 </select>
               </div>
               
-              <div>
-                <Label htmlFor="mileage">Current Mileage</Label>
+              <div className="space-y-2">
+                <Label htmlFor="mileage" className="mobile-text">Current Mileage</Label>
                 <Input
                   id="mileage"
                   type="number"
                   placeholder="Current mileage"
                   value={vehicleObservation.mileage}
                   onChange={(e) => setVehicleObservation(prev => ({...prev, mileage: e.target.value}))}
+                  className="mobile-input"
                 />
               </div>
               
-              <div>
-                <Label htmlFor="fuel_level">Fuel Level (1-8)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="fuel_level" className="mobile-text">Fuel Level (1-8)</Label>
                 <Input
                   id="fuel_level"
                   type="number"
@@ -537,32 +549,85 @@ export default function DriverDashboard() {
                   placeholder="Fuel gauge reading"
                   value={vehicleObservation.fuel_level}
                   onChange={(e) => setVehicleObservation(prev => ({...prev, fuel_level: e.target.value}))}
+                  className="mobile-input"
                 />
               </div>
             </div>
             
-            <div>
-              <Label htmlFor="damage_notes">Observations & Notes</Label>
+            <div className="space-y-2">
+              <Label htmlFor="damage_notes" className="mobile-text">Observations & Notes</Label>
               <Textarea
                 id="damage_notes"
                 placeholder="Record any damage, issues, or general observations about the vehicle..."
                 value={vehicleObservation.damage_notes}
                 onChange={(e) => setVehicleObservation(prev => ({...prev, damage_notes: e.target.value}))}
-                rows={3}
+                rows={4}
+                className="mobile-input min-h-[100px] resize-none"
               />
             </div>
             
-            <div className="flex space-x-2">
-              <Button onClick={handleVehicleObservation} className="bg-green-600 hover:bg-green-700">
+            <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
+              <Button
+                onClick={handleVehicleObservation}
+                size="mobile"
+                fullWidth
+                className="bg-green-600 hover:bg-green-700 touch-target"
+              >
                 Save Observation
               </Button>
-              <Button onClick={() => setShowVehicleForm(false)} variant="outline">
+              <Button
+                onClick={() => setShowVehicleForm(false)}
+                variant="outline"
+                size="mobile"
+                fullWidth
+                className="touch-target"
+              >
                 Cancel
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* One-time Check-ins - Moved up for mobile priority */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <UserCheck className="w-5 h-5 text-purple-600" />
+            <span>Quick Check-ins</span>
+          </CardTitle>
+          <CardDescription>Essential check-ins for your assignment</CardDescription>
+        </CardHeader>
+        <CardContent className="mobile-padding">
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {oneTimeCheckinTypes.map((type) => {
+                const completed = isOneTimeCheckinComplete(type)
+                return (
+                  <Button
+                    key={type}
+                    onClick={() => setSelectedCheckinType(type)}
+                    variant={completed && type !== 'custom' ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
+                    disabled={completed && type !== 'custom'}
+                    size="mobile"
+                    fullWidth
+                    className={`justify-start touch-target ${completed && type !== 'custom' ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-center space-x-3 w-full">
+                      {completed && type !== 'custom' ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      ) : (
+                        <Clock className="w-5 h-5 flex-shrink-0" />
+                      )}
+                      <span className="font-medium text-left flex-1">{getCheckinTypeLabel(type)}</span>
+                    </div>
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Enhanced Check-in System */}
       <div className="space-y-6">
@@ -574,20 +639,18 @@ export default function DriverDashboard() {
               <span>Event Date</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-4">
-              <Label htmlFor="event_date">Select Event Date:</Label>
-              <Input
-                id="event_date"
-                type="date"
+          <CardContent className="mobile-padding">
+            <div className="space-y-4 sm:flex sm:items-center sm:space-x-4 sm:space-y-0">
+              <MobileDatePicker
+                label="Select Event Date"
                 value={currentEventDate}
-                onChange={(e) => {
-                  setCurrentEventDate(e.target.value)
+                onChange={(value) => {
+                  setCurrentEventDate(value)
                   if (assignment) {
                     fetchCheckinProgress(assignment.id)
                   }
                 }}
-                className="w-auto"
+                className="sm:w-auto"
               />
             </div>
           </CardContent>
@@ -602,9 +665,9 @@ export default function DriverDashboard() {
             </CardTitle>
             <CardDescription>These check-ins reset daily and support multiple sessions</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-3">
+          <CardContent className="mobile-padding">
+            <div className="space-y-3">
+              <div className="grid gap-3">
                 {dailyCheckinTypes.map((type) => {
                   const completed = isDailyCheckinComplete(type)
                   return (
@@ -612,53 +675,17 @@ export default function DriverDashboard() {
                       key={type}
                       onClick={() => setSelectedCheckinType(type)}
                       variant={completed ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
-                      className={`h-auto p-4 ${completed ? 'opacity-75' : ''}`}
+                      size="mobile"
+                      fullWidth
+                      className={`justify-start touch-target ${completed ? 'opacity-75' : ''}`}
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-3 w-full">
                         {completed ? (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
                         ) : (
-                          <Clock className="w-4 h-4" />
+                          <Clock className="w-5 h-5 flex-shrink-0" />
                         )}
-                        <span className="text-sm font-medium">{getCheckinTypeLabel(type)}</span>
-                      </div>
-                    </Button>
-                  )
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* One-time Check-ins */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <UserCheck className="w-5 h-5 text-purple-600" />
-              <span>One-time Check-ins</span>
-            </CardTitle>
-            <CardDescription>These check-ins are completed once per assignment</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-3">
-                {oneTimeCheckinTypes.map((type) => {
-                  const completed = isOneTimeCheckinComplete(type)
-                  return (
-                    <Button
-                      key={type}
-                      onClick={() => setSelectedCheckinType(type)}
-                      variant={completed && type !== 'custom' ? "secondary" : selectedCheckinType === type ? "default" : "outline"}
-                      disabled={completed && type !== 'custom'}
-                      className={`h-auto p-4 ${completed && type !== 'custom' ? 'opacity-60' : ''}`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {completed && type !== 'custom' ? (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <Clock className="w-4 h-4" />
-                        )}
-                        <span className="text-sm font-medium">{getCheckinTypeLabel(type)}</span>
+                        <span className="font-medium text-left flex-1">{getCheckinTypeLabel(type)}</span>
                       </div>
                     </Button>
                   )
@@ -674,16 +701,16 @@ export default function DriverDashboard() {
             <CardHeader>
               <CardTitle>Check-in: {getCheckinTypeLabel(selectedCheckinType)}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="mobile-padding space-y-4">
               {/* Session Selection for Daily Check-ins */}
               {dailyCheckinTypes.includes(selectedCheckinType as DailyCheckinType) && (
-                <div>
-                  <Label htmlFor="session">Session</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="session" className="mobile-text">Session</Label>
                   <select
                     id="session"
                     value={selectedSession}
                     onChange={(e) => setSelectedSession(e.target.value)}
-                    className="w-full p-2 border rounded-md"
+                    className="mobile-input w-full"
                   >
                     <option value="morning">Morning Session</option>
                     <option value="evening">Evening Session</option>
@@ -695,34 +722,38 @@ export default function DriverDashboard() {
 
               {/* Custom Label for Custom Check-ins */}
               {selectedCheckinType === 'custom' && (
-                <div>
-                  <Label htmlFor="custom_label">Custom Check-in Label</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="custom_label" className="mobile-text">Custom Check-in Label</Label>
                   <Input
                     id="custom_label"
                     placeholder="Enter a description for this check-in..."
                     value={customLabel}
                     onChange={(e) => setCustomLabel(e.target.value)}
+                    className="mobile-input"
                   />
                 </div>
               )}
 
               {/* Notes */}
-              <div>
-                <Label htmlFor="checkin_notes">Notes (Optional)</Label>
+              <div className="space-y-2">
+                <Label htmlFor="checkin_notes" className="mobile-text">Notes (Optional)</Label>
                 <Textarea
                   id="checkin_notes"
                   placeholder={`Add any notes about ${getCheckinTypeLabel(selectedCheckinType).toLowerCase()}...`}
                   value={checkinNotes}
                   onChange={(e) => setCheckinNotes(e.target.value)}
-                  rows={2}
+                  rows={3}
+                  className="mobile-input min-h-[80px] resize-none"
                 />
               </div>
               
-              <div className="flex space-x-2">
+              <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
                 <Button
                   onClick={handleCheckin}
                   disabled={checkingIn || (selectedCheckinType === 'custom' && !customLabel.trim())}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  size="mobile"
+                  fullWidth
+                  className="bg-blue-600 hover:bg-blue-700 touch-target"
                 >
                   {checkingIn ? 'Checking in...' : 'Check In'}
                 </Button>
@@ -733,6 +764,9 @@ export default function DriverDashboard() {
                     setCustomLabel('')
                   }}
                   variant="outline"
+                  size="mobile"
+                  fullWidth
+                  className="touch-target"
                 >
                   Cancel
                 </Button>

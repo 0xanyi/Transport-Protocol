@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthUser, DriverTrackingInfo, TrackingDashboardFilters } from '@/types'
 import { canAccessDepartment, hasTrackingOnlyAccess } from '@/lib/permissions'
-import { 
-  MapPin, 
-  Clock, 
-  Phone, 
+import {
+  MapPin,
+  Clock,
+  Phone,
   Car,
   User,
   Filter,
@@ -24,6 +24,23 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 
+// Debounce hook for search optimization
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 export default function TrackingDashboard() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [trackingData, setTrackingData] = useState<DriverTrackingInfo[]>([])
@@ -33,6 +50,7 @@ export default function TrackingDashboard() {
   const [filters, setFilters] = useState<TrackingDashboardFilters>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300) // 300ms debounce
 
   useEffect(() => {
     // Get current user from session storage
@@ -60,7 +78,7 @@ export default function TrackingDashboard() {
     }
   }, [])
 
-  const fetchTrackingData = async () => {
+  const fetchTrackingData = useCallback(async () => {
     try {
       setRefreshing(true)
       
@@ -88,11 +106,11 @@ export default function TrackingDashboard() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [filters])
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchTrackingData()
-  }
+  }, [fetchTrackingData])
 
   const getStatusColor = (status: string) => {
     const statusColors: { [key: string]: string } = {
@@ -109,17 +127,19 @@ export default function TrackingDashboard() {
     return statusColors[status] || 'bg-gray-100 text-gray-800'
   }
 
-  const filteredData = trackingData.filter(driver => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      return (
-        driver.driver_name.toLowerCase().includes(searchLower) ||
-        driver.vip_name?.toLowerCase().includes(searchLower) ||
-        driver.vehicle_info?.toLowerCase().includes(searchLower)
-      )
-    }
-    return true
-  })
+  const filteredData = useMemo(() => {
+    return trackingData.filter(driver => {
+      if (debouncedSearchTerm) {
+        const searchLower = debouncedSearchTerm.toLowerCase()
+        return (
+          driver.driver_name.toLowerCase().includes(searchLower) ||
+          driver.vip_name?.toLowerCase().includes(searchLower) ||
+          driver.vehicle_info?.toLowerCase().includes(searchLower)
+        )
+      }
+      return true
+    })
+  }, [trackingData, debouncedSearchTerm])
 
   if (loading) {
     return (
@@ -155,18 +175,25 @@ export default function TrackingDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tracking Dashboard</h1>
-          <p className="text-gray-600 mt-1">Real-time driver and VIP movement tracking</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="text-center sm:text-left">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tracking Dashboard</h1>
+        <p className="text-gray-600 mt-1 mobile-text">Real-time driver and VIP movement tracking</p>
+      </div>
+      
+      <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+        <div className="flex items-center space-x-2 order-2 sm:order-1">
+          <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+            {filteredData.length} of {trackingData.length} drivers
+          </div>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 order-1 sm:order-2">
           <Button
             onClick={() => setShowFilters(!showFilters)}
             variant="outline"
-            size="sm"
+            size="mobile"
+            className="flex-1 sm:flex-none touch-target"
           >
             <Filter className="w-4 h-4 mr-2" />
             Filters
@@ -174,8 +201,8 @@ export default function TrackingDashboard() {
           <Button
             onClick={handleRefresh}
             disabled={refreshing}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
+            size="mobile"
+            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 touch-target"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -185,71 +212,67 @@ export default function TrackingDashboard() {
 
       {/* Search and Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search by driver name, VIP name, or vehicle..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <CardContent className="mobile-padding">
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Input
+                placeholder="Search drivers, VIPs, vehicles..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mobile-input pl-12"
+              />
             </div>
-            <div className="text-sm text-gray-600">
-              {filteredData.length} of {trackingData.length} drivers
-            </div>
-          </div>
 
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t">
-              <div className="grid md:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="status_filter">Assignment Status</Label>
-                  <select
-                    id="status_filter"
-                    value={filters.assignment_status || ''}
-                    onChange={(e) => setFilters(prev => ({
-                      ...prev,
-                      assignment_status: e.target.value as any || undefined
-                    }))}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="">All Statuses</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="checkin_filter">Last Check-in Type</Label>
-                  <select
-                    id="checkin_filter"
-                    value={filters.checkin_type || ''}
-                    onChange={(e) => setFilters(prev => ({
-                      ...prev,
-                      checkin_type: e.target.value as any || undefined
-                    }))}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="">All Check-ins</option>
-                    <option value="airport_arrival">Airport Arrival</option>
-                    <option value="vip_pickup">VIP Pickup</option>
-                    <option value="hotel_to_events_venue">Hotel → Events Venue</option>
-                    <option value="arrived_at_events_venue">At Events Venue</option>
-                    <option value="departing_events_venue">Departing Events Venue</option>
-                    <option value="arrived_at_hotel">At Hotel</option>
-                  </select>
+            {showFilters && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
+                  <div className="space-y-2">
+                    <Label htmlFor="status_filter" className="mobile-text">Assignment Status</Label>
+                    <select
+                      id="status_filter"
+                      value={filters.assignment_status || ''}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        assignment_status: e.target.value as any || undefined
+                      }))}
+                      className="mobile-input w-full"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="checkin_filter" className="mobile-text">Last Check-in Type</Label>
+                    <select
+                      id="checkin_filter"
+                      value={filters.checkin_type || ''}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        checkin_type: e.target.value as any || undefined
+                      }))}
+                      className="mobile-input w-full"
+                    >
+                      <option value="">All Check-ins</option>
+                      <option value="airport_arrival">Airport Arrival</option>
+                      <option value="vip_pickup">VIP Pickup</option>
+                      <option value="hotel_to_events_venue">Hotel → Events Venue</option>
+                      <option value="arrived_at_events_venue">At Events Venue</option>
+                      <option value="departing_events_venue">Departing Events Venue</option>
+                      <option value="arrived_at_hotel">At Hotel</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="md:col-span-2 flex items-end space-x-2">
+                <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
                   <Button
                     onClick={fetchTrackingData}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700"
+                    size="mobile"
+                    fullWidth
+                    className="bg-green-600 hover:bg-green-700 touch-target"
                   >
                     Apply Filters
                   </Button>
@@ -260,62 +283,66 @@ export default function TrackingDashboard() {
                       fetchTrackingData()
                     }}
                     variant="outline"
-                    size="sm"
+                    size="mobile"
+                    fullWidth
+                    className="touch-target"
                   >
                     Clear All
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Tracking Cards */}
-      <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="mobile-grid">
         {filteredData.map((driver) => {
           const isRestrictedUser = currentUser ? hasTrackingOnlyAccess(currentUser) : false
           
           return (
-            <Card key={driver.driver_id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center space-x-2">
-                    <User className="w-5 h-5 text-blue-600" />
-                    <span>{driver.driver_name}</span>
-                  </CardTitle>
-                  <Badge className={getStatusColor(driver.current_status)}>
+            <Card key={driver.driver_id} className="mobile-card hover:shadow-lg transition-shadow">
+              <CardHeader className="mobile-padding pb-3">
+                <div className="flex items-start justify-between space-x-3">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <User className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-lg truncate">{driver.driver_name}</CardTitle>
+                      {!isRestrictedUser && (
+                        <CardDescription className="flex items-center space-x-2 mt-1">
+                          <Phone className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{driver.driver_phone}</span>
+                        </CardDescription>
+                      )}
+                    </div>
+                  </div>
+                  <Badge className={`${getStatusColor(driver.current_status)} flex-shrink-0 text-xs`}>
                     {driver.current_status}
                   </Badge>
                 </div>
-                {!isRestrictedUser && (
-                  <CardDescription className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4" />
-                    <span>{driver.driver_phone}</span>
-                  </CardDescription>
-                )}
               </CardHeader>
               
-              <CardContent className="space-y-4">
+              <CardContent className="mobile-padding space-y-4">
                 {/* VIP Information - Always show for restricted users as requested */}
                 {driver.vip_name && (
                   <div className="bg-purple-50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <User className="w-4 h-4 text-purple-600" />
-                      <span className="font-medium text-purple-900">VIP Assignment</span>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <User className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                      <span className="font-medium text-purple-900 mobile-text">VIP Assignment</span>
                     </div>
-                    <p className="text-purple-800">{driver.vip_name}</p>
+                    <p className="text-purple-800 font-medium truncate">{driver.vip_name}</p>
                   </div>
                 )}
 
                 {/* Vehicle Information - Hide for restricted users */}
                 {driver.vehicle_info && !isRestrictedUser && (
                   <div className="bg-green-50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Car className="w-4 h-4 text-green-600" />
-                      <span className="font-medium text-green-900">Vehicle</span>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Car className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <span className="font-medium text-green-900 mobile-text">Vehicle</span>
                     </div>
-                    <p className="text-green-800">{driver.vehicle_info}</p>
+                    <p className="text-green-800 text-sm truncate">{driver.vehicle_info}</p>
                   </div>
                 )}
 
@@ -323,28 +350,30 @@ export default function TrackingDashboard() {
                 {driver.last_checkin && (
                   <div className="bg-blue-50 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <Navigation className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium text-blue-900">Last Check-in</span>
+                      <div className="flex items-center space-x-2 min-w-0 flex-1">
+                        <Navigation className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <span className="font-medium text-blue-900 mobile-text">Last Check-in</span>
                       </div>
-                      <div className="flex items-center space-x-1 text-xs text-blue-700">
+                      <div className="flex items-center space-x-1 text-xs text-blue-700 flex-shrink-0">
                         <Clock className="w-3 h-3" />
                         <span>{format(new Date(driver.last_checkin.timestamp), 'HH:mm')}</span>
                       </div>
                     </div>
-                    <p className="text-blue-800 text-sm">
+                    <p className="text-blue-800 text-sm font-medium mb-2">
                       {driver.last_checkin.checkin_type === 'custom' && driver.last_checkin.custom_label
                         ? driver.last_checkin.custom_label
                         : driver.last_checkin.checkin_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                       }
                     </p>
-                    {driver.last_checkin.session_id && !isRestrictedUser && (
-                      <Badge variant="outline" className="mt-1 text-xs">
-                        {driver.last_checkin.session_id}
-                      </Badge>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {driver.last_checkin.session_id && !isRestrictedUser && (
+                        <Badge variant="outline" className="text-xs">
+                          {driver.last_checkin.session_id}
+                        </Badge>
+                      )}
+                    </div>
                     {driver.last_checkin.notes && !isRestrictedUser && (
-                      <p className="text-blue-700 text-xs mt-1">{driver.last_checkin.notes}</p>
+                      <p className="text-blue-700 text-xs mt-2 line-clamp-2">{driver.last_checkin.notes}</p>
                     )}
                   </div>
                 )}
@@ -352,11 +381,11 @@ export default function TrackingDashboard() {
                 {/* Location - Show general location for restricted users */}
                 {driver.location && (
                   <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <MapPin className="w-4 h-4 text-gray-600" />
-                      <span className="font-medium text-gray-900">Location</span>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <MapPin className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                      <span className="font-medium text-gray-900 mobile-text">Location</span>
                     </div>
-                    <p className="text-gray-700 text-sm">
+                    <p className="text-gray-700 text-sm line-clamp-2">
                       {isRestrictedUser
                         ? (driver.location.address ? driver.location.address.split(',')[0] : 'Location available')
                         : (driver.location.address || `${driver.location.latitude}, ${driver.location.longitude}`)

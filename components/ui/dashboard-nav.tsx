@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Users, Car, Calendar, UserCheck, LogOut, Home, User, Shield, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { MobileNav } from '@/components/ui/mobile-nav'
 import { AuthUser } from '@/types'
 import { canAccessDepartment, canViewResource, hasTrackingOnlyAccess } from '@/lib/permissions'
 
@@ -118,69 +119,75 @@ export function DashboardNav({ currentUser }: DashboardNavProps) {
   }
 
   return (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-8">
-            <Link href="/dashboard" className="flex items-center space-x-2">
-              <Home className="w-5 h-5" />
-              <span className="font-semibold text-lg">STPPL Transport</span>
-            </Link>
-            
-            <div className="flex space-x-4">
-              {getVisibleNavItems().map((item) => {
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      pathname === item.href
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    )}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.title}</span>
-                  </Link>
-                )
-              })}
+    <>
+      {/* Mobile Navigation */}
+      <MobileNav currentUser={currentUser} />
+      
+      {/* Desktop Navigation */}
+      <nav className="bg-white shadow-sm border-b hidden lg:block">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-8">
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <Home className="w-5 h-5" />
+                <span className="font-semibold text-lg">STPPL Transport</span>
+              </Link>
+              
+              <div className="flex space-x-4">
+                {getVisibleNavItems().map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        'flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors touch-target',
+                        pathname === item.href
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {currentUser && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <User className="w-4 h-4" />
-                <div className="flex flex-col">
-                  <span className="font-medium">{currentUser.name}</span>
-                  <div className="flex items-center space-x-2 text-xs">
-                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded capitalize">
-                      {currentUser.role.replace('_', ' ')}
-                    </span>
-                    {currentUser.department && (
-                      <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded capitalize">
-                        {currentUser.department === 'all' ? 'All Depts' : currentUser.department}
+            
+            <div className="flex items-center space-x-4">
+              {currentUser && (
+                <div className="hidden xl:flex items-center space-x-2 text-sm text-gray-600">
+                  <User className="w-4 h-4" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">{currentUser.name}</span>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded capitalize">
+                        {currentUser.role.replace('_', ' ')}
                       </span>
-                    )}
+                      {currentUser.department && (
+                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded capitalize">
+                          {currentUser.department === 'all' ? 'All Depts' : currentUser.department}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="flex items-center space-x-2"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center space-x-2 touch-target"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   )
 }

@@ -201,71 +201,71 @@ export function TrackingWidget({
             <p className="text-gray-600">No drivers with active assignments found.</p>
           </div>
         ) : (
-          <div className={`space-y-4 ${compact ? 'max-h-96 overflow-y-auto' : ''}`}>
+          <div className={`space-y-3 ${compact ? 'max-h-96 overflow-y-auto mobile-scroll' : ''}`}>
             {trackingData.map((driver) => {
               const isRestrictedUser = currentUser ? hasTrackingOnlyAccess(currentUser) : false
               
               return (
-                <div key={driver.driver_id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div key={driver.driver_id} className="mobile-card hover:shadow-md transition-shadow mobile-padding">
                   {/* Driver Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <User className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <h4 className="font-medium text-gray-900">{driver.driver_name}</h4>
+                  <div className="flex items-start justify-between mb-3 space-x-3">
+                    <div className="flex items-center space-x-3 min-w-0 flex-1">
+                      <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-gray-900 truncate">{driver.driver_name}</h4>
                         {!isRestrictedUser && (
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <Phone className="w-3 h-3" />
-                            <span>{driver.driver_phone}</span>
+                          <div className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
+                            <Phone className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{driver.driver_phone}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <Badge className={getStatusColor(driver.current_status)}>
+                    <Badge className={`${getStatusColor(driver.current_status)} flex-shrink-0 text-xs`}>
                       {driver.current_status}
                     </Badge>
                   </div>
 
                   {/* Assignment Info */}
-                  <div className="grid md:grid-cols-2 gap-3 mb-3">
+                  <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 mb-3">
                     {/* VIP Information - Always show for restricted users as requested */}
                     {driver.vip_name && (
-                      <div className="bg-purple-50 rounded-md p-2">
-                        <div className="flex items-center space-x-1 mb-1">
-                          <User className="w-3 h-3 text-purple-600" />
+                      <div className="bg-purple-50 rounded-md p-3">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <User className="w-4 h-4 text-purple-600 flex-shrink-0" />
                           <span className="text-xs font-medium text-purple-900">VIP</span>
                         </div>
-                        <p className="text-sm text-purple-800">{driver.vip_name}</p>
+                        <p className="text-sm text-purple-800 font-medium truncate">{driver.vip_name}</p>
                       </div>
                     )}
 
                     {/* Vehicle Information - Hide for restricted users */}
                     {driver.vehicle_info && !isRestrictedUser && (
-                      <div className="bg-green-50 rounded-md p-2">
-                        <div className="flex items-center space-x-1 mb-1">
-                          <Car className="w-3 h-3 text-green-600" />
+                      <div className="bg-green-50 rounded-md p-3">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Car className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <span className="text-xs font-medium text-green-900">Vehicle</span>
                         </div>
-                        <p className="text-sm text-green-800">{driver.vehicle_info}</p>
+                        <p className="text-sm text-green-800 truncate">{driver.vehicle_info}</p>
                       </div>
                     )}
                   </div>
 
                   {/* Last Check-in */}
                   {driver.last_checkin && (
-                    <div className="bg-blue-50 rounded-md p-2 mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center space-x-1">
-                          <Navigation className="w-3 h-3 text-blue-600" />
+                    <div className="bg-blue-50 rounded-md p-3 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2 min-w-0 flex-1">
+                          <Navigation className="w-4 h-4 text-blue-600 flex-shrink-0" />
                           <span className="text-xs font-medium text-blue-900">Last Check-in</span>
                         </div>
-                        <div className="flex items-center space-x-1 text-xs text-blue-700">
+                        <div className="flex items-center space-x-1 text-xs text-blue-700 flex-shrink-0">
                           <Clock className="w-3 h-3" />
                           <span>{format(new Date(driver.last_checkin.timestamp), 'HH:mm')}</span>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm text-blue-800">
+                      <div className="space-y-2">
+                        <p className="text-sm text-blue-800 font-medium line-clamp-2">
                           {driver.last_checkin.checkin_type === 'custom' && driver.last_checkin.custom_label
                             ? driver.last_checkin.custom_label
                             : driver.last_checkin.checkin_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
@@ -290,7 +290,7 @@ export function TrackingWidget({
         {trackingData.length > 0 && (
           <div className="mt-4 pt-4 border-t">
             <Link href="/dashboard/tracking">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" size="mobile" fullWidth className="touch-target">
                 <ExternalLink className="w-4 h-4 mr-2" />
                 View Full Tracking Dashboard
               </Button>

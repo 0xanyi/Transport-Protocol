@@ -77,8 +77,10 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardNav currentUser={currentUser} />
-      <main className="container mx-auto px-4 py-8">
-        {children}
+      <main className="container mx-auto mobile-padding py-4 sm:py-6 lg:py-8 safe-bottom">
+        <div className="max-w-7xl mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   )
