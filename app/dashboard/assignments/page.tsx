@@ -5,11 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { Driver, Vehicle, VIP, AssignmentWithDetails } from '@/types'
-import { Calendar, User, Car, UserCheck, Plus, ArrowRight, Search, Filter, Zap } from 'lucide-react'
+import { Calendar, User, Car, UserCheck, Plus, ArrowRight, Search, Filter, Zap, Trash2, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 export default function AssignmentsPage() {
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -119,6 +120,33 @@ export default function AssignmentsPage() {
       console.error('Error creating assignment:', error)
       // Show user-friendly error message
       alert('Failed to create assignment. Please check the console for details.')
+    }
+  }
+
+  const deleteAssignment = async (assignmentId: string) => {
+    try {
+      console.log('Deleting assignment:', assignmentId)
+      
+      const response = await fetch(`/api/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete assignment')
+      }
+
+      const data = await response.json()
+      console.log('Assignment deleted successfully:', data)
+
+      // Refresh data to show the updated assignments
+      fetchData()
+    } catch (error) {
+      console.error('Error deleting assignment:', error)
+      alert('Failed to delete assignment. Please check the console for details.')
     }
   }
 
@@ -295,9 +323,9 @@ export default function AssignmentsPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        assignment.status === 'active' 
+                        assignment.status === 'active'
                           ? 'bg-green-100 text-green-800'
                           : assignment.status === 'scheduled'
                           ? 'bg-blue-100 text-blue-800'
@@ -308,6 +336,51 @@ export default function AssignmentsPage() {
                       <span className="text-sm text-gray-500">
                         {format(new Date(assignment.created_at), 'dd MMM HH:mm')}
                       </span>
+                      
+                      {/* Delete Button with Confirmation */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2">
+                              <AlertTriangle className="w-5 h-5 text-red-600" />
+                              Delete Assignment
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this assignment?
+                              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {assignment.driver?.name} → {assignment.vehicle?.make} {assignment.vehicle?.model}
+                                  {assignment.vip && ` → ${assignment.vip.name}`}
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Status: {assignment.status} • Created: {format(new Date(assignment.created_at), 'dd MMM HH:mm')}
+                                </div>
+                              </div>
+                              <div className="mt-3 text-sm text-red-600">
+                                <strong>Warning:</strong> This will also delete all related check-ins and vehicle observations. This action cannot be undone.
+                              </div>
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteAssignment(assignment.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete Assignment
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>

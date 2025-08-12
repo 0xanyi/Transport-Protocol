@@ -78,10 +78,10 @@ export async function DELETE(
     const { id } = await params
     const supabase = createServiceClient()
 
-    // Check if driver exists
+    // Check if driver exists and get user_id
     const { data: existingDriver, error: fetchError } = await supabase
       .from('drivers')
-      .select('id, name, status')
+      .select('id, name, status, user_id')
       .eq('id', id)
       .single()
 
@@ -126,22 +126,62 @@ export async function DELETE(
     }
 
     // If no related records, proceed with deletion
-    const { error } = await supabase
+    console.log(`DELETE /api/drivers/${id} - Deleting driver and associated user account`)
+    console.log(`Driver details:`, {
+      id: existingDriver.id,
+      name: existingDriver.name,
+      user_id: existingDriver.user_id
+    })
+
+    // Delete the driver record first
+    const { error: driverDeleteError } = await supabase
       .from('drivers')
       .delete()
       .eq('id', id)
 
-    if (error) {
-      console.error('Database error:', error)
+    if (driverDeleteError) {
+      console.error('Database error deleting driver:', driverDeleteError)
       return NextResponse.json(
         { error: 'Failed to delete driver' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
-      message: `Driver ${existingDriver.name} deleted successfully`
-    })
+    console.log(`DELETE /api/drivers/${id} - Driver record deleted successfully`)
+
+    // Delete the associated user account if it exists
+    if (existingDriver.user_id) {
+      console.log(`DELETE /api/drivers/${id} - Deleting associated user account: ${existingDriver.user_id}`)
+      
+      const { error: userDeleteError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', existingDriver.user_id)
+
+      if (userDeleteError) {
+        console.error('Database error deleting user:', userDeleteError)
+        // Don't fail the entire operation if user deletion fails
+        // The driver is already deleted, so log the error but continue
+        console.warn(`Failed to delete user account ${existingDriver.user_id} for driver ${existingDriver.name}:`, userDeleteError)
+        
+        return NextResponse.json({
+          message: `Driver ${existingDriver.name} deleted successfully`,
+          warning: 'Driver deleted but associated user account could not be removed. Please check manually.'
+        })
+      }
+
+      console.log(`DELETE /api/drivers/${id} - User account deleted successfully`)
+      
+      return NextResponse.json({
+        message: `Driver ${existingDriver.name} and associated user account deleted successfully`
+      })
+    } else {
+      console.log(`DELETE /api/drivers/${id} - No associated user account to delete`)
+      
+      return NextResponse.json({
+        message: `Driver ${existingDriver.name} deleted successfully (no associated user account)`
+      })
+    }
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(

@@ -8,9 +8,10 @@ import bcrypt from 'bcryptjs'
 export const GET = requirePermission('users', 'read', async (
   request: NextRequest,
   _context: AuthContext,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('users')
@@ -29,7 +30,7 @@ export const GET = requirePermission('users', 'read', async (
           email
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -59,9 +60,10 @@ export const GET = requirePermission('users', 'read', async (
 export const PUT = requirePermission('users', 'update', async (
   request: NextRequest,
   _context: AuthContext,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params
     const body = await request.json() as UpdateUserRequest & { password?: string }
     const { name, role, department, status, password } = body
 
@@ -83,7 +85,7 @@ export const PUT = requirePermission('users', 'update', async (
     const { data, error } = await supabase
       .from('users')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         id,
         email,
@@ -123,16 +125,17 @@ export const PUT = requirePermission('users', 'update', async (
 export const DELETE = requirePermission('users', 'delete', async (
   request: NextRequest,
   _context: AuthContext,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     // Check if user exists and get their role
     const { data: user, error: fetchError } = await supabase
       .from('users')
       .select('id, role')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError) {
@@ -159,7 +162,7 @@ export const DELETE = requirePermission('users', 'delete', async (
     const { error } = await supabase
       .from('users')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (error) {
       console.error('Error deleting user:', error)
