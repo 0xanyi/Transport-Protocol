@@ -12,7 +12,7 @@ export const PUT = requirePermission('assignments', 'update', async (request: Ne
 
   try {
     const body = await request.json()
-    const { vip_id, start_time, end_time } = body
+    const { vip_id, vehicle_id, start_time, end_time } = body
 
     const serviceSupabase = createServiceClient()
 
@@ -32,6 +32,43 @@ export const PUT = requirePermission('assignments', 'update', async (request: Ne
     if (start_time !== undefined) updateData.start_time = start_time
     if (end_time !== undefined) updateData.end_time = end_time
     if (vip_id !== undefined) updateData.vip_id = vip_id
+    if (vehicle_id !== undefined) updateData.vehicle_id = vehicle_id
+
+    // Handle vehicle reassignment
+    if (vehicle_id !== undefined && vehicle_id !== currentAssignment.vehicle_id) {
+      // Check if new vehicle is available
+      if (vehicle_id) {
+        const { data: newVehicle, error: vehicleCheckError } = await serviceSupabase
+          .from('vehicles')
+          .select('current_driver_id')
+          .eq('id', vehicle_id)
+          .single()
+
+        if (vehicleCheckError) {
+          return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 })
+        }
+
+        if (newVehicle.current_driver_id && newVehicle.current_driver_id !== currentAssignment.driver_id) {
+          return NextResponse.json({ error: 'Vehicle is already assigned to another driver' }, { status: 400 })
+        }
+      }
+
+      // Clear old vehicle assignment
+      if (currentAssignment.vehicle_id) {
+        await serviceSupabase
+          .from('vehicles')
+          .update({ current_driver_id: null })
+          .eq('id', currentAssignment.vehicle_id)
+      }
+
+      // Set new vehicle assignment
+      if (vehicle_id) {
+        await serviceSupabase
+          .from('vehicles')
+          .update({ current_driver_id: currentAssignment.driver_id })
+          .eq('id', vehicle_id)
+      }
+    }
 
     // Update the assignment
     const { data: updatedAssignment, error: updateError } = await serviceSupabase
