@@ -356,7 +356,7 @@ export default function TrackingDashboard() {
                       </div>
                       <div className="flex items-center space-x-1 text-xs text-blue-700 flex-shrink-0">
                         <Clock className="w-3 h-3" />
-                        <span>{format(new Date(driver.last_checkin.timestamp), 'HH:mm')}</span>
+                        <span>{format(new Date(driver.last_checkin.timestamp), 'MMM d, HH:mm')}</span>
                       </div>
                     </div>
                     <p className="text-blue-800 text-sm font-medium mb-2">
